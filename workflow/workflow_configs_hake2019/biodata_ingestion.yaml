@@ -1,0 +1,20 @@
+data_root: C:/rthomas/Projects/EchoPop_validation/Data
+biodata_file: 1995-2025_Survey_Biodata.xlsx
+biodata_sheets:
+  catch: biodata_catch
+  length: biodata_length
+  specimen: biodata_specimen
+biodata_subset:
+  species_id: 22500
+  ship_us: 160
+  ship_can: 584
+  survey_us: 201906
+  survey_can: 2019097
+  can_haul_offset: 200
+rename_biodata_columns:
+  frequency: length_count
+  haul: haul_num
+  "haul ": haul_num
+  weight_in_haul: weight
+biodata_format: excel
+drop_specimen_hauls: True
