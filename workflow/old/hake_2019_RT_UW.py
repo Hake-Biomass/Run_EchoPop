@@ -3,14 +3,6 @@
 # ----
 from pathlib import Path
 from echopop.workflow_examples import cli_utils
-from echopop import utils
-from echopop.utils import feat_functions as feat
-from echopop.survey import apportionment, biology, proportions, stratified, transect
-import echopop.ingest as ingestion
-import yaml
-from echopop.survey import biology
-import logging
-import copy
 ####################################################################################################
 # PARAMETER ENTRY
 # ---------------
@@ -27,263 +19,117 @@ try:
 except Exception:
     # ---- FOR INTERACTIVE REPL USE
     VERBOSE = True
-#these are things tha may be brought in by cli_utils. For now define here
-Year=2019
-runyearstr=str(Year) #added by RT
-EXTRAP_FLAG=True
-STRATA_TYPE="KS"
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-# Read in configuration
-config_ingest = yaml.safe_load(Path("workflow/workflow_configs_hake"+runyearstr+"/biodata_ingestion.yaml").read_text(encoding="utf-8"))
-config_strata = yaml.safe_load(Path("workflow/workflow_configs_hake"+runyearstr+"/stratification.yaml").read_text(encoding="utf-8"))
-config_analysis = yaml.safe_load(Path("workflow/workflow_configs_hake"+runyearstr+"/biodata_analysis.yaml").read_text(encoding="utf-8"))
-config_kriging = yaml.safe_load(Path("workflow/workflow_configs_hake"+runyearstr+"/kriging_config.yaml").read_text(encoding="utf-8"))
-config_nasc = yaml.safe_load(Path("workflow/workflow_configs_hake"+runyearstr+"/nasc_config.yaml").read_text(encoding="utf-8"))
-config_output = yaml.safe_load(Path("workflow/workflow_configs_hake"+runyearstr+"/output_config.yaml").read_text(encoding="utf-8"))
-
-
-# Root data directory
-DATA_ROOT = Path(config_ingest["data_root"])
+# DATA ROOT DIRECTORY
+#DATA_ROOT = Path("C:/Data/EchopopData/file_all_years_update_20260303/2019")
+DATA_ROOT = Path("C:/rthomas/Projects/EchoPop_validation/Data/From UW/file_all_years_update_20260303/2019")
+RT_COMPARE_ROOT=Path("C:/rthomas/Projects/EchoPop_validation/Data/UW_RT_Test/2019")
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # REPORTS SAVE DIRECTORY
-#REPORTS_DIR = DATA_ROOT / "output_echopop"
-if EXTRAP_FLAG==True:
-    Exname="KwE"
-else:
-    Exname="KnE"
-REPORTS_DIR = Path("C:/rthomas/Projects/EchoPop_validation/Reports/"+runyearstr+"/EchoPop/"+STRATA_TYPE+"/"+Exname+"/" )
+REPORTS_DIR = RT_COMPARE_ROOT / "output_echopop"
 # COMPARE TO ECHOPRO REPORTS?
 try:
     # ---- FOR CLI USE
     COMPARE = cli_utils.get_compare()
-    ECHOPRO_REPORTS_DIR = Path("C:/rthomas/Projects/EchoPop_validation/Reports") /runyearstr/ "EchoPro_2022" / STRATA_TYPE / Exname
-    #COMPARISONS_DIR = DATA_ROOT / "comparisons"
-    COMPARISONS_DIR = Path(DATA_ROOT / "comparisons" /runyearstr/ "EchoPop" /STRATA_TYPE/ Exname) 
+    ECHOPRO_REPORTS_DIR = DATA_ROOT / "output_echopro"
+    #COMPARISONS_DIR = DATA_ROOT / "comparisons_RT"
+    COMPARISONS_DIR = RT_COMPARE_ROOT / "comparisons"
     SHOW_PLOT = False
 except Exception:
     # ---- FOR INTERACTIVE REPL USE
     COMPARE = False
-
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# ALREADY PROCESSED NASC FILE ? 
+# ---- When False, the raw NASC exports will be processed. When True, the pre-formatted NASC 
+# ---- spreadsheet will be read in. This also requires defining `NASC_EXPORTS_SHEET`
+NASC_PREPROCESSED = True
+# NASC EXPORTS FILE(S)
+NASC_EXPORTS_FILES = DATA_ROOT / "input/Exports/US&CAN_detailsa_2019_table2y+_ALL_final - updated.xlsx"
+# NASC EXPORTS SHEET
+NASC_EXPORTS_SHEET = "Sheet1"
 # REMOVE AGE-1 (I.E., AGE-2+ ONLY)?
 REMOVE_AGE1 = True
-
-# ---------------------------
-# Stage 1: Biodata ingestion
-# ---------------------------
-
-BIODATA_FILE = Path(DATA_ROOT / "biological/updated"  / config_ingest["biodata_file"])
-
-logging.info(
-    f"Beginning biodata ingestion for: '{BIODATA_FILE.as_posix()}'."
-)
-
-# Biodata file sheetnames
-BIODATA_SHEETS = config_ingest["biodata_sheets"]
-# Biodata ingestion parameters
-RENAME_BIODATA_COLUMNS = config_ingest["rename_biodata_columns"]
-
-# Haul UID reference dictionary
-HAUL_UID_CONFIG = {
-    "ship_id": {
-        "US": config_ingest["biodata_subset"]["ship_us"], 
-        "CAN": config_ingest["biodata_subset"]["ship_can"]
-    },
-    "survey_id": {
-        "US": config_ingest["biodata_subset"]["survey_us"], 
-        "CAN": config_ingest["biodata_subset"]["survey_can"]
-    },
-    "species_id": config_ingest["biodata_subset"]["species_id"],
-    "haul_offset": config_ingest["biodata_subset"]["can_haul_offset"]
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# BIODATA FILE
+BIODATA_FILE = DATA_ROOT / "input/Biological/1995-2025_Survey_Biodata.xlsx"
+# BIODATA SHEETS
+# ---- Assign the sheetnames to 'catch', 'length', 'specimen'
+BIODATA_SHEETS = {
+    "catch": "biodata_catch",
+    "length": "biodata_length",
+    "specimen": "biodata_specimen",
 }
+# BIODATA PROCESSING
+# ---- This is used to parse the biodata master spreadsheet, which is required for aligning the 
+# ---- biodata with ancillary files such as stratification and transect-haul mappings. This should 
+# ---- define the "ships" based on their IDs with the associated survey IDs. If an offset should be 
+# ---- added to the haul numbers, that must also be defined here. The target species should also be 
+# ---- defined here. 
+CAN_HAUL_OFFSET = 200
+SPECIES_ID = 22500 # numeric species code for Pacific hake
+SHIP_US = 160 # US ship ID
+SHIP_CAN = 584 # CAN ship ID
+SURVEY_US = 201906 # US survey identifier
+SURVEY_CAN = 2019097 # CAN survey identifier
 
-
-# Different biodata processing parameters required for parsing the Excel-formatted dataset
 BIODATA_SHIP_SPECIES = {
     "ships": {
-        config_ingest["biodata_subset"]["ship_us"]: {
+        SHIP_US: {
             "country": "US",
-            "survey": config_ingest["biodata_subset"]["survey_us"] 
+            "survey": SURVEY_US 
         },
-        config_ingest["biodata_subset"]["ship_can"]: {
+        SHIP_CAN: {
             "country": "CAN",
-            "survey": config_ingest["biodata_subset"]["survey_can"],
-            "haul_offset": config_ingest["biodata_subset"]["can_haul_offset"]
+            "survey": SURVEY_CAN,
+            "haul_offset": CAN_HAUL_OFFSET
         }
     },
-    "species_code": [config_ingest["biodata_subset"]["species_id"]]
+    "species_code": [SPECIES_ID]
 }
-# Biodata ingestion parameters
-RENAME_BIODATA_COLUMNS = config_ingest["rename_biodata_columns"]
-CAN_HAUL_OFFSET = config_ingest["biodata_subset"]["can_haul_offset"]
-
-# Biodata sex label mapping
-BIODATA_SEX = {
-    "sex": {
-        1: "male",
-        2: "female",
-        3: "unsexed"
-    }
-}
-# Ingest biodata based on configured typing
-if config_ingest["biodata_format"] == "excel":
-    dict_df_bio = ingestion.load_biological_data(
-        biodata_filepath=BIODATA_FILE, 
-        biodata_sheet_map=BIODATA_SHEETS, 
-        column_name_map=RENAME_BIODATA_COLUMNS, 
-        survey_subset=BIODATA_SHIP_SPECIES, 
-        biodata_label_map=BIODATA_SEX,
-        haul_uid_config=HAUL_UID_CONFIG,
-    )
-    # Remove specimen-only hauls only when configured
-    # ---- ! This is ONLY compatible for when the Excel file format is ingested
-    if config_ingest["drop_specimen_hauls"]:
-        biology.drop_specimen_only_hauls(dict_df_bio)
-elif config_ingest["biodata_format"] == "views":
-    dict_df_bio = ingestion.load_biodata_views(
-        biodata_filepaths=BIODATA_FILE,
-        column_name_map=RENAME_BIODATA_COLUMNS,
-        survey_subset=BIODATA_SHIP_SPECIES, 
-        biodata_label_map=BIODATA_SEX,
-        haul_uid_config=HAUL_UID_CONFIG,
-    )
-else:
-    raise KeyError(
-        f"Configuration parameter 'biodata_format' must be either 'excel' or 'views'. "
-        f"Got: '{config_ingest['biodata_format']}'!"
-    )
-
-
 # BIODATA PROCESSING: AGE-1 DOMINATED HAULS
 # ---- This is a list of age-1 dominated haul numbers that should be designated for removal. If no
 # ---- hauls should be removed, then set `AGE1_DOMINATED_HAULS` to `[]`
 AGE1_DOMINATED_HAULS = []
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # HAUL STRATIFICATION FILE
-#HAUL_STRATA_FILE = Path(DATA_ROOT / "Stratification/")
-# ------------------------------------
-# Stage 2: Stratification + join stage
-# ------------------------------------
-# Load strata file
-#HAUL_STRATA_FILE = Path(DATA_ROOT / "Stratification/")
-logging.info(
-    "Loading stratification files..."
-)
-DATA_STRATA_ROOT = Path(config_strata["data_root"]) /"Stratification" / runyearstr
-df_dict_strata = ingestion.load_strata(
-    strata_filepath=DATA_STRATA_ROOT / config_strata["strata_file"], 
-    strata_sheet_map=config_strata["strata_sheets"], 
-    column_name_map=config_strata["rename_strata_columns"],
-    haul_uid_config=HAUL_UID_CONFIG,
-)
-logging.info(
-    "Haul-based stratification loading complete\n"
-    "'df_dict_strata' created."
-)
-
-# Apply strata to biodata
-if config_strata["join_method"] == "haul":
-    dict_df_bio = ingestion.join_strata_by_haul(
-        data=dict_df_bio,
-        strata=df_dict_strata[config_strata["stratum_source"]],
-        default_stratum=config_strata["default_stratum"],
-        stratum_name=config_strata["stratum_name"]
-    )
-elif config_strata["join_method"] == "uid":
-    dict_df_bio = ingestion.join_strata_by_uid(
-        data=dict_df_bio,
-        strata=df_dict_strata[config_strata["stratum_source"]],
-        default_stratum=config_strata["default_stratum"],
-        stratum_name=config_strata["stratum_name"]
-    )
-else:
-    raise KeyError(
-        f"Configuration parameter 'join_method' must be either 'haul' or 'uid'. "
-        f"Got: '{config_strata['biodata_format']}'!"
-    )    
-
-# READ IN GEOSTRATA FILE
-
-# # HAUL STRATIFICATION SHEET MAP
-# # ---- Valid keys are limited to "ks" and "inpfc"
-# HAUL_STRATA_SHEETS = {
-#     "inpfc": "INPFC",
-#     "ks": "Base KS",
-# }
+HAUL_STRATA_FILE = DATA_ROOT / "input/Stratification/US_CAN strata 2019_final.xlsx"
+# HAUL STRATIFICATION SHEET MAP
+# ---- Valid keys are limited to "ks" and "inpfc"
+HAUL_STRATA_SHEETS = {
+    "inpfc": "INPFC",
+    "ks": "Base KS",
+}
 # GEOGRAPHIC STRATIFICATION FILE
-GEOSTRATA_FILE=Path(DATA_STRATA_ROOT) / config_strata["geo_strata_file"]
-logging.info(
-    f"Load in geographic-based stratification: '{GEOSTRATA_FILE.as_posix()}'."
-)
-
-df_dict_geostrata = ingestion.load_geostrata(
-    geostrata_filepath=DATA_STRATA_ROOT / config_strata["geo_strata_file"], 
-    geostrata_sheet_map=config_strata["geo_strata_sheets"], 
-    column_name_map=config_strata["rename_geo_strata_columns"],
-)
-
-logging.info(
-    "Geographic-based stratification loading complete\n"
-    "'df_dict_geostrata' created."
-)
-# GEOSTRATA_FILE = DATA_ROOT / "input/Stratification/Stratification_geographic_Lat_2019_final.xlsx"
-# # GEOGRAPHIC STRATIFICATION SHEET MAP
-# # ---- Valid keys are limited to "ks" and "inpfc"
-# GEOSTRATA_SHEETS = {
-#     "inpfc": "INPFC",
-#     "ks": "stratification1",
-# }
+GEOSTRATA_FILE = DATA_ROOT / "input/Stratification/Stratification_geographic_Lat_2019_final.xlsx"
+# GEOGRAPHIC STRATIFICATION SHEET MAP
+# ---- Valid keys are limited to "ks" and "inpfc"
+GEOSTRATA_SHEETS = {
+    "inpfc": "INPFC",
+    "ks": "stratification1",
+}
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # KRIGING MESH FILE 
-# KRIGING_MESH_FILE = (
-#     DATA_ROOT / "input/Kriging_files/Kriging_grid_files/krig_grid2_5nm_cut_centroids_2013.xlsx"
-# )
 KRIGING_MESH_FILE = (
-    Path(DATA_ROOT) / "Kriging files & parameters/Kriging Grid Files" / config_kriging["mesh_file"]
+    DATA_ROOT / "input/Kriging_files/Kriging_grid_files/krig_grid2_5nm_cut_centroids_2013.xlsx"
 )
 # KRIGING MESH SHEET
-#KRIGING_MESH_SHEET = "krigedgrid2_5nm_forChu"
-KRIGING_MESH_SHEET = config_kriging["mesh_sheet"]
+KRIGING_MESH_SHEET = "krigedgrid2_5nm_forChu"
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # KRIGING AND VARIOGRAM PARAMETERS FILE
-# KRIGING_VARIOGRAM_PARAMETERS_FILE = (
-#     DATA_ROOT / "input/Kriging_files/default_vario_krig_settings_2019_US_CAN.xlsx"
-# )
 KRIGING_VARIOGRAM_PARAMETERS_FILE = (
-    DATA_ROOT / "Kriging Files & parameters" / runyearstr / config_kriging["variogram_parameters_file"]
+    DATA_ROOT / "input/Kriging_files/default_vario_krig_settings_2019_US_CAN.xlsx"
 )
 # KRIGING AND VARIOGRAM PARAMETERS SHEET
-KRIGING_VARIOGRAM_PARAMETERS_SHEET = config_kriging["variogram_parameters_sheet"] 
+KRIGING_VARIGORAM_PARAMETERS_SHEET = "Sheet1"
 # USE DEFAULT VALUES OR OPTIMIZE?
 OPTIMIZE_VARIOGRAM = False
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# # 200m ISOBATH FILE
-# ISOBATH_FILE = (
-#     DATA_ROOT / "input/Kriging_files/Kriging_grid_files/transformation_isobath_coordinates.xlsx"
-# )
+# 200m ISOBATH FILE
 ISOBATH_FILE = (
-    DATA_ROOT / "Kriging files & parameters/Kriging Grid Files" / config_kriging["isobath_file"]
+    DATA_ROOT / "input/Kriging_files/Kriging_grid_files/transformation_isobath_coordinates.xlsx"
 )
 # 200m ISOBATH SHEET
-#ISOBATH_SHEET = "Smoothing_EasyKrig"
-ISOBATH_SHEET = config_kriging["isobath_sheet"]
-
-
-#-----------------------
-# Stage 3 : ingest NASC
-#-----------------------
-
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# ALREADY PROCESSED NASC FILE ? 
-# ---- When False, the raw NASC exports will be processed. When True, the pre-formatted NASC 
-# ---- spreadsheet will be read in. This also requires defining `NASC_EXPORTS_SHEET`
-NASC_PREPROCESSED = False
-# NASC EXPORTS FILE(S)
-NASC_EXPORTS_FILES = Path(DATA_ROOT) / "Exports/EchoPro_Exports" / config_nasc["formatted_exports_file"]
-NASC_EXPORTS_SHEET = config_nasc["formatted_exports_sheet"] #e.g. "Sheet1"
-NASC_EXPORTS_PATH =Path(DATA_ROOT) / "Exports"/ runyearstr  # pathfor Echoview exports
-
-
+ISOBATH_SHEET = "Smoothing_EasyKrig"
 ####################################################################################################
 ####################################################################################################
 # !!! START OF PROCESSING SCRIPT !!
@@ -294,8 +140,11 @@ import logging
 import numpy as np
 import xarray as xr
 from lmfit import Parameters
+from echopop.utils import feat_functions as feat
 from echopop.reports import Reporter, compare
+import echopop.ingest as ingestion
 from echopop import geostatistics, inversion, utils
+from echopop.survey import apportionment, biology, proportions, stratified, transect
 ####################################################################################################
 # FORMAT LOGGER
 for handler in logging.root.handlers[:]:
@@ -308,13 +157,13 @@ logging.basicConfig(
 # DATA INGESTION 
 # ==================================================================================================
 # FORMAT HAUL-BASED UID 
-# logging.info(f"Creating haul-based UID...")
-# HAUL_UID_CONFIG = {
-#     "ship_id": {"US": SHIP_US, "CAN": SHIP_CAN},
-#     "survey_id": {"US": SURVEY_US, "CAN": SURVEY_CAN},
-#     "species_id": SPECIES_ID,
-#     "haul_offset": CAN_HAUL_OFFSET
-# }
+logging.info(f"Creating haul-based UID...")
+HAUL_UID_CONFIG = {
+    "ship_id": {"US": SHIP_US, "CAN": SHIP_CAN},
+    "survey_id": {"US": SURVEY_US, "CAN": SURVEY_CAN},
+    "species_id": SPECIES_ID,
+    "haul_offset": CAN_HAUL_OFFSET
+}
 
 # INGEST NASC DATA 
 if NASC_PREPROCESSED:
@@ -353,7 +202,7 @@ else:
         "     Default latitude threshold: 60.0 deg."
     )    
     df_intervals, df_exports = ingestion.nasc.merge_echoview_nasc(
-        file_directory = NASC_EXPORTS_PATH,
+        file_directory = NASC_EXPORTS_FILES,
         filename_transect_pattern = r"T(\d+)",
         default_transect_spacing = 10.0,
         default_latitude_threshold = 60.0,
@@ -438,58 +287,43 @@ logging.info(
 
 # DROP TRANSECTS
 df_nasc = utils.apply_filters(df_nasc, include_filter={"transect_num": np.arange(1, 200)})
-# # ==================================================================================================
-# # INGEST BIODATA
-# logging.info(
-#     f"Beginning biodata ingestion for: '{BIODATA_FILE.as_posix()}'."
-# )
+# ==================================================================================================
+# INGEST BIODATA
+logging.info(
+    f"Beginning biodata ingestion for: '{BIODATA_FILE.as_posix()}'."
+)
 
 # BIODATA DATAFRAME COLUMN NAME MAPPING
-# FEAT_TO_ECHOPOP_BIODATA_COLUMNS = {
-#     "frequency": "length_count",
-#     "haul": "haul_num",
-#     "haul ": "haul_num",
-#     "weight_in_haul": "weight",
-# }
+FEAT_TO_ECHOPOP_BIODATA_COLUMNS = {
+    "frequency": "length_count",
+    "haul": "haul_num",
+    "haul ": "haul_num",
+    "weight_in_haul": "weight",
+}
 
-# # BIODATA LABEL MAPPING
-# BIODATA_SEX = {
-#     "sex": {
-#         1: "male",
-#         2: "female",
-#         3: "unsexed"
-#     }
-# }
-
+# BIODATA LABEL MAPPING
+BIODATA_SEX = {
+    "sex": {
+        1: "male",
+        2: "female",
+        3: "unsexed"
+    }
+}
 
 # READ IN DATA
-# dict_df_bio = ingestion.load_biological_data(
-#     biodata_filepath=BIODATA_FILE, 
-#     biodata_sheet_map=BIODATA_SHEETS, 
-#     column_name_map=FEAT_TO_ECHOPOP_BIODATA_COLUMNS, 
-#     survey_subset=BIODATA_SHIP_SPECIES, 
-#     biodata_label_map=BIODATA_SEX,
-#     haul_uid_config=HAUL_UID_CONFIG,
-# )
+dict_df_bio = ingestion.load_biological_data(
+    biodata_filepath=BIODATA_FILE, 
+    biodata_sheet_map=BIODATA_SHEETS, 
+    column_name_map=FEAT_TO_ECHOPOP_BIODATA_COLUMNS, 
+    survey_subset=BIODATA_SHIP_SPECIES, 
+    biodata_label_map=BIODATA_SEX,
+    haul_uid_config=HAUL_UID_CONFIG,
+)
 
-
-# # Ingest biodata
-# dict_df_bio = ingest.load_biological_data(
-#     biodata_filepath=BIODATA_FILE, 
-#     biodata_sheet_map=BIODATA_SHEETS, 
-#     column_name_map=RENAME_BIODATA_COLUMNS, 
-#     survey_subset=BIODATA_SHIP_SPECIES, 
-#     biodata_label_map=BIODATA_SEX,
-#     haul_uid_config=HAUL_UID_CONFIG,
-# )
-
-# # Remove specimen-only hauls
-# feat_biology.drop_specimen_only_hauls(dict_df_bio)
-
-# logging.info(
-#     "Biodata ingestion complete\n"
-#     "'dict_df_bio' created."
-# )
+logging.info(
+    "Biodata ingestion complete\n"
+    "'dict_df_bio' created."
+)
 
 # AGE-1 DOMINATED HAUL REMOVAL
 if len(AGE1_DOMINATED_HAULS) > 0:
@@ -507,52 +341,52 @@ if len(AGE1_DOMINATED_HAULS) > 0:
         f"{', '.join(map(str, AGE1_DOMINATED_HAULS))}."
     )
 # ==================================================================================================
-# # INGEST STRATIFICATION DATA
-# logging.info(
-#     "Loading stratification files..."
-# )
+# INGEST STRATIFICATION DATA
+logging.info(
+    "Loading stratification files..."
+)
 
-# # HAUL-BASED STRATIFICATION DATAFRAME COLUMN NAME MAPPING
-# FEAT_TO_ECHOPOP_STRATA_COLUMNS = {
-#     "fraction_hake": "nasc_proportion",
-#     "haul": "haul_num",
-#     "stratum": "stratum_num",
-# }
+# HAUL-BASED STRATIFICATION DATAFRAME COLUMN NAME MAPPING
+FEAT_TO_ECHOPOP_STRATA_COLUMNS = {
+    "fraction_hake": "nasc_proportion",
+    "haul": "haul_num",
+    "stratum": "stratum_num",
+}
 
-# # READ IN STRATA FILE 
-# logging.info(
-#     f"Load in haul-based stratification: '{HAUL_STRATA_FILE.as_posix()}'."
-# )
-# df_dict_strata = ingestion.load_strata(
-#     strata_filepath=HAUL_STRATA_FILE, 
-#     strata_sheet_map=HAUL_STRATA_SHEETS, 
-#     column_name_map=FEAT_TO_ECHOPOP_STRATA_COLUMNS,
-#     haul_uid_config=HAUL_UID_CONFIG,
-# )
-# logging.info(
-#     "Haul-based stratification loading complete\n"
-#     "'df_dict_strata' created."
-# )
+# READ IN STRATA FILE 
+logging.info(
+    f"Load in haul-based stratification: '{HAUL_STRATA_FILE.as_posix()}'."
+)
+df_dict_strata = ingestion.load_strata(
+    strata_filepath=HAUL_STRATA_FILE, 
+    strata_sheet_map=HAUL_STRATA_SHEETS, 
+    column_name_map=FEAT_TO_ECHOPOP_STRATA_COLUMNS,
+    haul_uid_config=HAUL_UID_CONFIG,
+)
+logging.info(
+    "Haul-based stratification loading complete\n"
+    "'df_dict_strata' created."
+)
 
 # GEOGRAPHIC-BASED STRATIFICATION DATAFRAME COLUMN NAME MAPPING
-#FEAT_TO_ECHOPOP_GEOSTRATA_COLUMNS = {
-#     "latitude (upper limit)": "northlimit_latitude",
-#     "stratum": "stratum_num",
-# }
+FEAT_TO_ECHOPOP_GEOSTRATA_COLUMNS = {
+    "latitude (upper limit)": "northlimit_latitude",
+    "stratum": "stratum_num",
+}
 
-# # READ IN GEOSTRATA FILE
-# logging.info(
-#     f"Load in geographic-based stratification: '{GEOSTRATA_FILE.as_posix()}'."
-# )
-# df_dict_geostrata = ingestion.load_geostrata(
-#     geostrata_filepath=GEOSTRATA_FILE, 
-#     geostrata_sheet_map=GEOSTRATA_SHEETS, 
-#     column_name_map=FEAT_TO_ECHOPOP_GEOSTRATA_COLUMNS
-# )
-# logging.info(
-#     "Geographic-based stratification loading complete\n"
-#     "'df_dict_geostrata' created."
-# )
+# READ IN GEOSTRATA FILE
+logging.info(
+    f"Load in geographic-based stratification: '{GEOSTRATA_FILE.as_posix()}'."
+)
+df_dict_geostrata = ingestion.load_geostrata(
+    geostrata_filepath=GEOSTRATA_FILE, 
+    geostrata_sheet_map=GEOSTRATA_SHEETS, 
+    column_name_map=FEAT_TO_ECHOPOP_GEOSTRATA_COLUMNS
+)
+logging.info(
+    "Geographic-based stratification loading complete\n"
+    "'df_dict_geostrata' created."
+)
 # ==================================================================================================
 # LOAD KRIGING MESH FILE
 logging.info(
@@ -561,9 +395,9 @@ logging.info(
 
 # KRIGING MESH DATAFRAME COLUMN NAME MAPPING
 FEAT_TO_ECHOPOP_MESH_COLUMNS = {
-    "latitude": "latitude",
-    "longitude": "longitude",
-    "cell portion": "fraction",
+    "centroid_latitude": "latitude",
+    "centroid_longitude": "longitude",
+    "fraction_cell_in_polygon": "fraction",
 }
 
 # LOAD MESH
@@ -609,7 +443,7 @@ FEAT_TO_ECHOPOP_GEOSTATS_PARAMS_COLUMNS = {
 # LOAD IN PARAMETERS
 dict_kriging_params, dict_variogram_params = ingestion.load_kriging_variogram_params(
     geostatistic_params_filepath=KRIGING_VARIOGRAM_PARAMETERS_FILE,
-    sheet_name=KRIGING_VARIOGRAM_PARAMETERS_SHEET,
+    sheet_name=KRIGING_VARIGORAM_PARAMETERS_SHEET,
     column_name_map=FEAT_TO_ECHOPOP_GEOSTATS_PARAMS_COLUMNS
 )
 logging.info(
@@ -685,50 +519,27 @@ df_mesh = ingestion.join_geostrata_by_latitude(
 )
 logging.info("Strata application complete!")
 # ==================================================================================================
-# # BINIFY DATA 
-# logging.info(
-#     "Binning biodata ['dict_df_bio'] into discrete age and length bins\n"
-#     "     Age bins: [1, 2, 3, ..., 20, 21, 22]\n"
-#     "     Length bins: [2.0, 4.0, 6.0, ... 76.0, 78.0, 80.0]\n"
-#     "     New columns:\n"
-#     "         Age: 'age_bin'\n"
-#     "         Length: 'length_bin'"
-# )
-
-# ---------------------------
-# Stage 3: Analysis bin setup
-# ---------------------------
-# Binify data
-# --- Age-bins
-AGE_BINS = np.linspace(
-    start=config_analysis["age"]["start"], 
-    stop=config_analysis["age"]["end"], 
-    num=config_analysis["age"]["count"]
+# BINIFY DATA 
+logging.info(
+    "Binning biodata ['dict_df_bio'] into discrete age and length bins\n"
+    "     Age bins: [1, 2, 3, ..., 20, 21, 22]\n"
+    "     Length bins: [2.0, 4.0, 6.0, ... 76.0, 78.0, 80.0]\n"
+    "     New columns:\n"
+    "         Age: 'age_bin'\n"
+    "         Length: 'length_bin'"
 )
+
+# AGE-BINS
+AGE_BINS = np.linspace(start=1., stop=22, num=22)
 utils.binify(
-    data=dict_df_bio, bins=AGE_BINS, bin_column=config_analysis["age"]["column"],
+    data=dict_df_bio, bins=AGE_BINS, bin_column="age",
 )
 
 # LENGTH-BINS
-LENGTH_BINS = np.linspace(
-    start=config_analysis["length"]["start"], 
-    stop=config_analysis["length"]["end"], 
-    num=config_analysis["length"]["count"]
-)
+LENGTH_BINS = np.linspace(start=2., stop=80., num=40)
 utils.binify(
-    data=dict_df_bio, bins=LENGTH_BINS, bin_column=config_analysis["length"]["column"], 
+    data=dict_df_bio, bins=LENGTH_BINS, bin_column="length", 
 )
-# # AGE-BINS
-# AGE_BINS = np.linspace(start=1., stop=22, num=22)
-# utils.binify(
-#     data=dict_df_bio, bins=AGE_BINS, bin_column="age",
-# )
-
-# # LENGTH-BINS
-# LENGTH_BINS = np.linspace(start=2., stop=80., num=40)
-# utils.binify(
-#     data=dict_df_bio, bins=LENGTH_BINS, bin_column="length", 
-# )
 logging.info("Age and length binning complete!")
 # ==================================================================================================
 # FIT LENGTH-WEIGHT REGRESSION
@@ -905,8 +716,7 @@ MODEL_PARAMETERS = {
         "intercept": -68.
     },
     "stratify_by": ["stratum_ks"],
-    #"expected_strata": df_dict_strata["ks"].stratum_num.unique(),
-    "expected_strata": np.sort(df_dict_strata["ks"].stratum_num.unique()),
+    "expected_strata": df_dict_strata["ks"].stratum_num.unique(),
     "impute_missing_strata": True,
     "haul_replicates": True,
     "haul_column": "uid",
@@ -1073,8 +883,7 @@ dict_ds_transect_biomass_table[
     population_table = dict_ds_transect_biomass_table["unaged"],
     reference_table = dict_ds_transect_biomass_table["aged"],
     stratum_dim = "stratum_ks",
-    impute = True,
-    impute_variable = ['age_bin'],
+    impute = False 
 )
 
 da_transect_biomass_table = apportionment.sum_population_tables(
@@ -1272,7 +1081,7 @@ logging.info(
 df_kriged_results = krg.krige(
     transects=df_nasc_proc,
     variable="biomass_density",
-    extrapolate=EXTRAP_FLAG,
+    extrapolate=True,
     default_mesh_cell_area=6.25,
     adaptive_search_strategy="FEAT_strategy",
     custom_search_kwargs=FEAT_STRATEGY_KWARGS
@@ -1418,24 +1227,9 @@ if REMOVE_AGE1:
         "Kriged age-1 abundance and biomass estimates redistributed\n"
         "'da_kriged_abundance_table_proc' and 'da_kriged_biomass_table_proc' created."
     )
-    
-    # UPDATED KRIGED ABUNDANCE WHEN REDISTRIBUTED
-    # ---- Redistribute JUST the aged 
-    da_kriged_abundance_table_aged = apportionment.reallocate_excluded_estimates(
-        population_table=dict_ds_kriged_abundance_table["aged"],
-        exclusion_filter={"age_bin": [1]},
-        group_columns=["sex"],
-    )
-    # ---- Construct dictionary of tables   
-    dict_ds_kriged_abundance_table_proc = {
-        "aged": da_kriged_abundance_table_aged,
-        "unaged": dict_ds_kriged_abundance_table["unaged"],
-    }    
 else:
     da_kriged_abundance_table_proc = da_kriged_abundance_table
     da_kriged_biomass_table_proc = da_kriged_biomass_table
-    dict_ds_kriged_abundance_table_proc = copy.deepcopy(dict_ds_kriged_abundance_table)
-
 # ==================================================================================================
 # JOLLY AND HAMPTON (1990) ANALYSIS
 # ==================================================================================================
@@ -1531,19 +1325,16 @@ logging.info(
 )
 reporter = Reporter(REPORTS_DIR, verbose=VERBOSE)
 
-
 # AGED-LENGTH HAUL
 reporter.aged_length_haul_counts_report(
-    #filename="aged_length_haul_counts.xlsx",
-    filename=config_output["aged_length_haul_counts"],
+    filename="aged_length_haul_counts.xlsx",
     sheetnames={"male": "Sheet1", "female": "Sheet2", "all": "Sheet3"},
     bio_data=dict_df_bio["specimen"].dropna(subset=["age", "length", "weight"])
 )
 
 # TOTAL LENGTH HAUL COUNTS
 reporter.total_length_haul_counts_report(
-    #filename="total_length_haul_counts.xlsx",
-    filename=config_output["total_length_haul_counts"],
+    filename="total_length_haul_counts.xlsx",
     sheetnames={"male": "Sheet1", "female": "Sheet2", "all": "Sheet3"},
     bio_data=dict_df_bio
 )
@@ -1552,8 +1343,7 @@ reporter.total_length_haul_counts_report(
 
 # All values
 reporter.kriged_aged_biomass_mesh_report(
-    #filename="kriged_aged_biomass_mesh_full.xlsx",
-    filename=config_output["kriged_aged_biomass_mesh_full"],
+    filename="kriged_aged_biomass_mesh_full.xlsx",
     sheetnames={"all": "Sheet1", "male": "Sheet2", "female": "Sheet3"},
     kriged_data=df_kriged_results,
     weight_data=ds_da_weight_dist["aged"],
@@ -1562,8 +1352,7 @@ reporter.kriged_aged_biomass_mesh_report(
 
 # Nonzero values
 reporter.kriged_aged_biomass_mesh_report(
-    #filename="kriged_aged_biomass_mesh_nonzero.xlsx",
-    filename=config_output["kriged_aged_biomass_mesh_nonzero"],
+    filename="kriged_aged_biomass_mesh_nonzero.xlsx",
     sheetnames={"all": "Sheet1", "male": "Sheet2", "female": "Sheet3"},
     kriged_data=df_kriged_results[df_kriged_results["biomass"] > 0.],
     weight_data=ds_da_weight_dist["aged"],
@@ -1574,8 +1363,7 @@ reporter.kriged_aged_biomass_mesh_report(
 
 # All values
 reporter.kriged_mesh_results_report(
-    #filename="kriged_biomass_mesh_full.xlsx",
-    filename=config_output["kriged_biomass_mesh_full"],
+    filename="kriged_biomass_mesh_full.xlsx",
     sheetname="Sheet1",
     kriged_data=df_kriged_results,
     kriged_stratum="geostratum_ks",
@@ -1586,8 +1374,7 @@ reporter.kriged_mesh_results_report(
 
 # Nonzero values
 reporter.kriged_mesh_results_report(
-    #filename="kriged_biomass_mesh_nonzero.xlsx",
-    filename=config_output["kriged_biomass_mesh_nonzero"], 
+    filename="kriged_biomass_mesh_nonzero.xlsx",
     sheetname="Sheet1",
     kriged_data=df_kriged_results[df_kriged_results["abundance"] > 0.],
     kriged_stratum="geostratum_ks",
@@ -1598,40 +1385,35 @@ reporter.kriged_mesh_results_report(
 
 # KRIGED LENGTH-AGE ABUNDANCES
 reporter.kriged_length_age_abundance_report(
-    #filename="kriged_length_age_abundance_report.xlsx",
-    filename=config_output["kriged_length_age_abundance_report"],
+    filename="kriged_length_age_abundance_report.xlsx",
     sheetnames={"male": "Sheet1", "female": "Sheet2", "all": "Sheet3"},
-    datatables=dict_ds_kriged_abundance_table_proc,
+    datatables=dict_ds_kriged_abundance_table,
 )
 
 # KRIGED LENGTH-AGE BIOMASS
 reporter.kriged_length_age_biomass_report(
-    #filename="kriged_length_age_biomass_report.xlsx",
-    filename=config_output["kriged_length_age_biomass_report"],
+    filename="kriged_length_age_biomass_report.xlsx",
     sheetnames={"male": "Sheet1", "female": "Sheet2", "all": "Sheet3"},
     datatable=da_kriged_biomass_table_proc,
 )
 
 # KRIGING INPUT
 reporter.kriging_input_report(
-    #filename="kriging_input_report.xlsx",
-    filename=config_output["kriging_input_report"],
+    filename="kriging_input_report.xlsx",
     sheetname="Sheet1",
     transect_data=df_nasc_proc,
 )
 
 # TRANSECT LENGTH-AGE ABUNDANCES
 reporter.transect_length_age_abundance_report(
-    #filename="transect_length_age_abundance_report.xlsx",
-    filename=config_output["transect_length_age_abundance_report"],
+    filename="transect_length_age_abundance_report.xlsx",
     sheetnames={"male": "Sheet1", "female": "Sheet2", "all": "Sheet3"},
     datatables=dict_ds_transect_abundance_table,
 )
 
 # TRANSECT LENGTH-AGE BIOMASS
 reporter.transect_length_age_biomass_report(
-    #filename="transect_length_age_biomass_report.xlsx",
-    filename=config_output["transect_length_age_biomass_report"],
+    filename="transect_length_age_biomass_report.xlsx",
     sheetnames={"male": "Sheet1", "female": "Sheet2", "all": "Sheet3"},
     datatable=da_transect_biomass_table,
 )
@@ -1640,8 +1422,7 @@ reporter.transect_length_age_biomass_report(
 
 # Full values
 reporter.transect_aged_biomass_report(
-    #filename="transect_aged_biomass_report_full.xlsx",
-    filename=config_output["transect_aged_biomass_report_full"],
+    filename="transect_aged_biomass_report_full.xlsx",
     sheetnames={"all": "Sheet1", "male": "Sheet2", "female": "Sheet3"},
     transect_data=df_nasc_proc,
     weight_data=ds_da_weight_dist["aged"],
@@ -1649,8 +1430,7 @@ reporter.transect_aged_biomass_report(
 
 # Nonzero values
 reporter.transect_aged_biomass_report(
-    #filename="transect_aged_biomass_report_nonzero.xlsx",
-    filename=config_output["transect_aged_biomass_report_nonzero"],
+    filename="transect_aged_biomass_report_nonzero.xlsx",
     sheetnames={"all": "Sheet1", "male": "Sheet2", "female": "Sheet3"},
     transect_data=df_nasc_proc[df_nasc_proc["biomass"] > 0.],
     weight_data=ds_da_weight_dist["aged"],
@@ -1660,8 +1440,7 @@ reporter.transect_aged_biomass_report(
 
 # Full values
 reporter.transect_population_results_report(
-    #filename="transect_population_results_full.xlsx",
-    filename=config_output["transect_population_results_full"],
+    filename="transect_population_results_full.xlsx",
     sheetname="Sheet1",
     transect_data=df_nasc_proc,
     weight_strata_data=da_averaged_weight,
@@ -1671,8 +1450,7 @@ reporter.transect_population_results_report(
 
 # Nonzero values
 reporter.transect_population_results_report(
-    #filename="transect_population_results_nonzero.xlsx",
-    filename=config_output["transect_population_results_nonzero"],
+    filename="transect_population_results_nonzero.xlsx",
     sheetname="Sheet1",
     transect_data=df_nasc_proc[df_nasc_proc["biomass"] > 0.],
     weight_strata_data=da_averaged_weight,
@@ -1686,132 +1464,69 @@ reporter.transect_population_results_report(
 # ==================================================================================================
 if COMPARE:
     # Dictionary map
-    # ECHOPRO_TO_ECHOPOP_FILE_MAP = {
-    #     "aged_length_haul_counts": {
-    #         "echopro": "aged_len_haul_counts_table.xlsx",
-    #         "echopop": "aged_length_haul_counts.xlsx"
-    #     },
-    #     "total_length_haul_counts": {
-    #         "echopro": "total_len_haul_counts_table.xlsx",
-    #         "echopop": "total_length_haul_counts.xlsx"
-    #     },
-    #     "aged_kriged_mesh_biomass_full": {
-    #         "echopro": "EchoPro_kriged_aged_output-2019_1.xlsx",
-    #         "echopop": "kriged_aged_biomass_mesh_full.xlsx"
-    #     },
-    #     "aged_kriged_mesh_biomass_subset": {
-    #         "echopro": "EchoPro_kriged_aged_output-2019_0.xlsx",
-    #         "echopop": "kriged_aged_biomass_mesh_nonzero.xlsx"
-    #     },
-    #     "kriged_mesh_biomass_full": {
-    #         "echopro": "EchoPro_kriged_output-28-Jan-2026_0.xlsx",
-    #         "echopop": "kriged_biomass_mesh_full.xlsx"
-    #     },
-    #     "kriged_mesh_biomass_subset": {
-    #         "echopro": "EchoPro_kriged_output-28-Jan-2026_1.xlsx",
-    #         "echopop": "kriged_biomass_mesh_nonzero.xlsx"
-    #     },
-    #     "kriging_input": {
-    #         "echopro": "kriging_input.xlsx",
-    #         "echopop": "kriging_input_report.xlsx"
-    #     },
-    #     "kriged_length_age_abundance": {
-    #         "echopro": "kriged_len_age_abundance_table.xlsx",
-    #         "echopop": "kriged_length_age_abundance_report.xlsx"
-    #     },
-    #     "kriged_length_age_biomass": {
-    #         "echopro": "kriged_len_age_biomass_table.xlsx",
-    #         "echopop": "kriged_length_age_biomass_report.xlsx"
-    #     },
-    #     "aged_transect_biomass_full": {
-    #         "echopro": "EchoPro_un-kriged_aged_output-2019_0.xlsx",
-    #         "echopop": "transect_aged_biomass_report_full.xlsx"
-    #     },
-    #     "aged_transect_biomass_subset": {
-    #         "echopro": "EchoPro_un-kriged_aged_output-2019_1.xlsx",
-    #         "echopop": "transect_aged_biomass_report_nonzero.xlsx"
-    #     },
-    #     "transect_length_age_abundance": {
-    #         "echopro": "un-kriged_len_age_abundance_table.xlsx",
-    #         "echopop": "transect_length_age_abundance_report.xlsx"
-    #     },
-    #     "transect_length_age_biomass": {
-    #         "echopro": "un-kriged_len_age_biomass_table.xlsx",
-    #         "echopop": "transect_length_age_biomass_report.xlsx"
-    #     },
-    #     "transect_results_full": {
-    #         "echopro": "EchoPro_un-kriged_output-28-Jan-2026_0.xlsx",
-    #         "echopop": "transect_population_results_full.xlsx"
-    #     },
-    #     "transect_results_subset": {
-    #         "echopro": "EchoPro_un-kriged_output-28-Jan-2026_1.xlsx",
-    #         "echopop": "transect_population_results_nonzero.xlsx"
-    #     }
-    # }
-    
     ECHOPRO_TO_ECHOPOP_FILE_MAP = {
         "aged_length_haul_counts": {
             "echopro": "aged_len_haul_counts_table.xlsx",
-            "echopop": config_output["aged_length_haul_counts"]
+            "echopop": "aged_length_haul_counts.xlsx"
         },
         "total_length_haul_counts": {
             "echopro": "total_len_haul_counts_table.xlsx",
-            "echopop": config_output["total_length_haul_counts"]
+            "echopop": "total_length_haul_counts.xlsx"
         },
         "aged_kriged_mesh_biomass_full": {
             "echopro": "EchoPro_kriged_aged_output-2019_1.xlsx",
-            "echopop": config_output["kriged_aged_biomass_mesh_full"]
+            "echopop": "kriged_aged_biomass_mesh_full.xlsx"
         },
         "aged_kriged_mesh_biomass_subset": {
             "echopro": "EchoPro_kriged_aged_output-2019_0.xlsx",
-            "echopop": config_output["kriged_aged_biomass_mesh_nonzero"]
+            "echopop": "kriged_aged_biomass_mesh_nonzero.xlsx"
         },
         "kriged_mesh_biomass_full": {
-            "echopro": "EchoPro_kriged_output-04-Sep-2024_0.xlsx",
-            "echopop": config_output["kriged_biomass_mesh_full"]
+            "echopro": "EchoPro_kriged_output-28-Jan-2026_0.xlsx",
+            "echopop": "kriged_biomass_mesh_full.xlsx"
         },
         "kriged_mesh_biomass_subset": {
-            "echopro": "EchoPro_kriged_output-04-Sep-2024_1.xlsx",
-            "echopop": config_output["kriged_biomass_mesh_nonzero"]
+            "echopro": "EchoPro_kriged_output-28-Jan-2026_1.xlsx",
+            "echopop": "kriged_biomass_mesh_nonzero.xlsx"
         },
         "kriging_input": {
             "echopro": "kriging_input.xlsx",
-            "echopop": config_output["kriging_input_report"]
+            "echopop": "kriging_input_report.xlsx"
         },
         "kriged_length_age_abundance": {
             "echopro": "kriged_len_age_abundance_table.xlsx",
-            "echopop": config_output["kriged_length_age_abundance_report"]
+            "echopop": "kriged_length_age_abundance_report.xlsx"
         },
         "kriged_length_age_biomass": {
             "echopro": "kriged_len_age_biomass_table.xlsx",
-            "echopop": config_output["kriged_length_age_biomass_report"]
+            "echopop": "kriged_length_age_biomass_report.xlsx"
         },
         "aged_transect_biomass_full": {
             "echopro": "EchoPro_un-kriged_aged_output-2019_0.xlsx",
-            "echopop": config_output["transect_aged_biomass_report_full"]
+            "echopop": "transect_aged_biomass_report_full.xlsx"
         },
         "aged_transect_biomass_subset": {
             "echopro": "EchoPro_un-kriged_aged_output-2019_1.xlsx",
-            "echopop": config_output["transect_aged_biomass_report_nonzero"]
+            "echopop": "transect_aged_biomass_report_nonzero.xlsx"
         },
         "transect_length_age_abundance": {
             "echopro": "un-kriged_len_age_abundance_table.xlsx",
-            "echopop": config_output["transect_length_age_abundance_report"]
+            "echopop": "transect_length_age_abundance_report.xlsx"
         },
         "transect_length_age_biomass": {
             "echopro": "un-kriged_len_age_biomass_table.xlsx",
-            "echopop": config_output["transect_length_age_biomass_report"]
+            "echopop": "transect_length_age_biomass_report.xlsx"
         },
         "transect_results_full": {
-            "echopro": "EchoPro_un-kriged_output-04-Sep-2024_0.xlsx",
-            "echopop": config_output["transect_population_results_full"]
+            "echopro": "EchoPro_un-kriged_output-28-Jan-2026_0.xlsx",
+            "echopop": "transect_population_results_full.xlsx"
         },
         "transect_results_subset": {
-            "echopro": "EchoPro_un-kriged_output-04-Sep-2024_1.xlsx",
-            "echopop": config_output["transect_population_results_nonzero"]
+            "echopro": "EchoPro_un-kriged_output-28-Jan-2026_1.xlsx",
+            "echopop": "transect_population_results_nonzero.xlsx"
         }
     }
-
+    
     # AGED LENGTH HAUL COUNTS
     echopro_aged_length_haul_counts = compare.read_pivot_table_report(
         ECHOPRO_REPORTS_DIR / ECHOPRO_TO_ECHOPOP_FILE_MAP["aged_length_haul_counts"]["echopro"]
@@ -1990,4 +1705,3 @@ if COMPARE:
         },
         show_plot=SHOW_PLOT
     )
-

@@ -32,7 +32,6 @@ try:
     # ---- FOR CLI USE
     COMPARE = cli_utils.get_compare()
     ECHOPRO_REPORTS_DIR = DATA_ROOT / "output_echopro"
-    #COMPARISONS_DIR = DATA_ROOT / "comparisons_RT"
     COMPARISONS_DIR = RT_COMPARE_ROOT / "comparisons"
     SHOW_PLOT = False
 except Exception:
@@ -137,6 +136,7 @@ ISOBATH_SHEET = "Smoothing_EasyKrig"
 ####################################################################################################
 ####################################################################################################
 import logging
+import copy
 import numpy as np
 import xarray as xr
 from lmfit import Parameters
@@ -716,7 +716,7 @@ MODEL_PARAMETERS = {
         "intercept": -68.
     },
     "stratify_by": ["stratum_ks"],
-    "expected_strata": df_dict_strata["ks"].stratum_num.unique(),
+    "expected_strata": np.sort(df_dict_strata["ks"].stratum_num.unique()),
     "impute_missing_strata": True,
     "haul_replicates": True,
     "haul_column": "uid",
@@ -735,6 +735,7 @@ logging.info(
     "     New column in 'df_nasc':\n"
     "         Number density (animals nm^-2): 'number_density'"
     )
+
 # ==================================================================================================
 # CONVERT TO BIOMASS
 logging.info("Converting number density estimates into biomass estimates")
@@ -883,7 +884,8 @@ dict_ds_transect_biomass_table[
     population_table = dict_ds_transect_biomass_table["unaged"],
     reference_table = dict_ds_transect_biomass_table["aged"],
     stratum_dim = "stratum_ks",
-    impute = False 
+    impute_variable = ["age_bin"],
+    impute = True
 )
 
 da_transect_biomass_table = apportionment.sum_population_tables(
@@ -923,7 +925,6 @@ df_nasc_proc, delta_longitude, delta_latitude = geostatistics.transform_coordina
     x_offset = -124.78338,
     y_offset = 45.,   
 )
-
 
 # MESH
 df_mesh, _, _ = geostatistics.transform_coordinates(
@@ -1227,9 +1228,23 @@ if REMOVE_AGE1:
         "Kriged age-1 abundance and biomass estimates redistributed\n"
         "'da_kriged_abundance_table_proc' and 'da_kriged_biomass_table_proc' created."
     )
+    
+    # UPDATED KRIGED ABUNDANCE WHEN REDISTRIBUTED
+    # ---- Redistribute JUST the aged 
+    da_kriged_abundance_table_aged = apportionment.reallocate_excluded_estimates(
+        population_table=dict_ds_kriged_abundance_table["aged"],
+        exclusion_filter={"age_bin": [1]},
+        group_columns=["sex"],
+    )
+    # ---- Construct dictionary of tables   
+    dict_ds_kriged_abundance_table_proc = {
+        "aged": da_kriged_abundance_table_aged,
+        "unaged": dict_ds_kriged_abundance_table["unaged"],
+    }    
 else:
     da_kriged_abundance_table_proc = da_kriged_abundance_table
     da_kriged_biomass_table_proc = da_kriged_biomass_table
+    dict_ds_kriged_abundance_table_proc = copy.deepcopy(dict_ds_kriged_abundance_table)
 # ==================================================================================================
 # JOLLY AND HAMPTON (1990) ANALYSIS
 # ==================================================================================================
@@ -1385,9 +1400,9 @@ reporter.kriged_mesh_results_report(
 
 # KRIGED LENGTH-AGE ABUNDANCES
 reporter.kriged_length_age_abundance_report(
-    filename="kriged_length_age_abundance_report.xlsx",
+    filename="EDITED_kriged_length_age_abundance_report.xlsx",
     sheetnames={"male": "Sheet1", "female": "Sheet2", "all": "Sheet3"},
-    datatables=dict_ds_kriged_abundance_table,
+    datatables=dict_ds_kriged_abundance_table_proc
 )
 
 # KRIGED LENGTH-AGE BIOMASS
@@ -1417,6 +1432,7 @@ reporter.transect_length_age_biomass_report(
     sheetnames={"male": "Sheet1", "female": "Sheet2", "all": "Sheet3"},
     datatable=da_transect_biomass_table,
 )
+
 
 # TRANSECT AGED BIOMASS
 
