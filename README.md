@@ -1,4 +1,5 @@
 # Repository created by Rebecca Thomas (rebecca.thomas@noaa.gov) for running refactored EchoPop
+So far just some of 2019 works.
 
 # Disclaimer
 
