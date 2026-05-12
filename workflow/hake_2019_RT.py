@@ -11,6 +11,8 @@ import yaml
 from echopop.survey import biology
 import logging
 import copy
+from datetime import date
+from typing import Callable
 ####################################################################################################
 # PARAMETER ENTRY
 # ---------------
@@ -29,6 +31,7 @@ except Exception:
     VERBOSE = True
 #these are things tha may be brought in by cli_utils. For now define here
 Year=2019
+Years=[Year]
 runyearstr=str(Year) #added by RT
 EXTRAP_FLAG=True
 STRATA_TYPE="KS"
@@ -53,18 +56,32 @@ if EXTRAP_FLAG==True:
 else:
     Exname="KnE"
 REPORTS_DIR = Path("C:/rthomas/Projects/EchoPop_validation/Reports/"+runyearstr+"/EchoPop/"+STRATA_TYPE+"/"+Exname+"/" )
+#ECHOPOP_ROOT_test = lambda year: Path(f"C:/rthomas/Projects/EchoPop_validation/Reports/{year}/EchoPop/"+STRATA_TYPE)
+ECHOPOP_ROOT = lambda year: Path(f"C:/rthomas/Projects/EchoPop_validation/Reports/{year}/EchoPop/"+STRATA_TYPE+"/"+Exname+"/")
+
 # COMPARE TO ECHOPRO REPORTS?
+#for now, since not using CLI, set manuall
+
 try:
     # ---- FOR CLI USE
     COMPARE = cli_utils.get_compare()
     ECHOPRO_REPORTS_DIR = Path("C:/rthomas/Projects/EchoPop_validation/Reports") /runyearstr/ "EchoPro_2022" / STRATA_TYPE / Exname
+    ECHOPRO_ROOT = lambda year: Path(f"C:/rthomas/Projects/EchoPop_validation/Reports/{year}/EchoPro_2022/"+STRATA_TYPE+"/"+Exname+"/")
+    #ECHOPRO_ROOT = lambda year: Path(f"C:/Data/EchopopData/reports/{year}/echopro")
     #COMPARISONS_DIR = DATA_ROOT / "comparisons"
     COMPARISONS_DIR = Path(DATA_ROOT / "comparisons" /runyearstr/ "EchoPop" /STRATA_TYPE/ Exname) 
+    #Set save filepath for figure
+    #SAVE_FILEPATH = Path(
+    #    DATA_ROOT / "comparisons"/  f"cross_year_comparisons_{date.today().strftime("%Y%m%d")}.png"
+    #)
+
+
     SHOW_PLOT = False
 except Exception:
     # ---- FOR INTERACTIVE REPL USE
     COMPARE = False
 
+COMPARE=False
 # REMOVE AGE-1 (I.E., AGE-2+ ONLY)?
 REMOVE_AGE1 = True
 
@@ -283,6 +300,20 @@ NASC_EXPORTS_FILES = Path(DATA_ROOT) / "Exports/EchoPro_Exports" / config_nasc["
 NASC_EXPORTS_SHEET = config_nasc["formatted_exports_sheet"] #e.g. "Sheet1"
 NASC_EXPORTS_PATH =Path(DATA_ROOT) / "Exports"/ runyearstr  # pathfor Echoview exports
 
+#ECHOPOP_PATTERNS = {
+#    "transect": "transect_population_results_full.xlsx",
+#    "kriging":  "kriged_biomass_mesh_full.xlsx",
+#}
+
+ECHOPOP_PATTERNS = {
+    "transect": r"^EchoPro_un-kriged_output(?:-.*)?_0\.xlsx$",
+    "kriging":  r"^EchoPro_kriged_output(?:-.*)?_0\.xlsx$",
+}
+
+ECHOPRO_PATTERNS = {
+    "transect": r"^EchoPro_un-kriged_output(?:-.*)?_0\.xlsx$",
+    "kriging":  r"^EchoPro_kriged_output(?:-.*)?_0\.xlsx$",
+}
 
 ####################################################################################################
 ####################################################################################################
@@ -1680,6 +1711,30 @@ reporter.transect_population_results_report(
     stratum_name="stratum_ks",
 )
 
+# CACHE_DIR = Path("C:\\rthomas\\Projects\\EchoPop_validation\\comparisons\\.cache")
+# MAX_WORKERS = None #no parallization
+# ECHOPRO_DATASETS, ECHOPOP_DATASETS = compare.load_all_geodata_reports(
+#     years=Years,
+#     echopro_root=ECHOPRO_ROOT,
+#     echopop_root=ECHOPOP_ROOT,
+#     echopop_patterns=ECHOPOP_PATTERNS,
+#     echopro_patterns=ECHOPRO_PATTERNS,
+#     cache_dir=CACHE_DIR,
+#     max_workers=MAX_WORKERS,
+#     verbose=True
+# )
+
+# # Compute the differences in terms of magnitude and percentage
+# magnitude_differences, percent_differences = compare.compute_dataset_differences(
+#     echopro_datasets=ECHOPRO_DATASETS,
+#     echopop_datasets=ECHOPOP_DATASETS,
+# )
+
+# # Plot the percent differences
+# compare.plot_dataset_differences(
+#     percent_differences,
+#     save_filepath=SAVE_FILEPATH,
+# )
 
 # ==================================================================================================
 # [OPTIONAL] REPORT COMPARISONS WITH ECHOPRO
