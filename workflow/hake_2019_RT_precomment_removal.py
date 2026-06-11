@@ -31,11 +31,11 @@ except Exception:
     # ---- FOR INTERACTIVE REPL USE
     VERBOSE = True
 #these are things tha may be brought in by cli_utils. For now define here
-Year= 2019
+Year=2019
 Years=[Year]
 runyearstr=str(Year) #added by RT
 EXTRAP_FLAG= True #True or False
-STRATA_TYPE="ks" #ks or inpfc
+STRATA_TYPE="inpfc" #ks or inpfc
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 # Read in configuration
@@ -51,16 +51,17 @@ config_output = yaml.safe_load(Path("workflow/workflow_configs_hake"+runyearstr+
 DATA_ROOT = Path(config_ingest["data_root"])
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # REPORTS SAVE DIRECTORY
+#REPORTS_DIR = DATA_ROOT / "output_echopop"
 if EXTRAP_FLAG==True:
     Exname="KwE"
 else:
     Exname="KnE"
+#REPORTS_DIR = Path("C:/rthomas/Projects/EchoPop_validation/Reports/"+runyearstr+"/EchoPop/"+STRATA_TYPE+"/"+Exname+"/" )
 REPORTS_DIR = Path(config_output["reports_out_base"]+runyearstr+"/EchoPop/"+STRATA_TYPE+"/"+Exname+"/" )
+#ECHOPOP_ROOT_test = lambda year: Path(f"C:/rthomas/Projects/EchoPop_validation/Reports/{year}/EchoPop/"+STRATA_TYPE)
+#ECHOPOP_ROOT = lambda year: Path(f"C:/rthomas/Projects/EchoPop_validation/Reports/{year}/EchoPop/"+STRATA_TYPE+"/"+Exname+"/")
 ECHOPOP_ROOT = lambda year: Path(config_output["reports_out_base"]+f"/{year}/EchoPop/"+STRATA_TYPE+"/"+Exname+"/")
 
-#COMPARISONS_DIR = Path(DATA_ROOT / "comparisons" /runyearstr/ "EchoPop" /STRATA_TYPE/ Exname)  
-#COMPARISONS_DIR=config_output["comparison_output_path"]
-COMPARISONS_DIR = Path(config_output["comparison_output_path"]  +"/"+runyearstr+"/"+ "EchoPop" +"/"+STRATA_TYPE+"/" +Exname+"/") 
 # COMPARE TO ECHOPRO REPORTS?
 #for now, since not using CLI, set manuall
 
@@ -71,8 +72,7 @@ try:
     ECHOPRO_ROOT = lambda year: Path(f"C:/rthomas/Projects/EchoPop_validation/Reports/{year}/EchoPro_2022/"+STRATA_TYPE+"/"+Exname+"/")
     #ECHOPRO_ROOT = lambda year: Path(f"C:/Data/EchopopData/reports/{year}/echopro")
     #COMPARISONS_DIR = DATA_ROOT / "comparisons"
-    #COMPARISONS_DIR = Path(config_output["comparison_output_path"]  +"/"+runyearstr+"/"+ "EchoPop" +"/"+STRATA_TYPE+"/" +Exname+"/") 
-
+    COMPARISONS_DIR = Path(DATA_ROOT / "comparisons" /runyearstr/ "EchoPop" /STRATA_TYPE/ Exname) 
     #Set save filepath for figure
     #SAVE_FILEPATH = Path(
     #    DATA_ROOT / "comparisons"/  f"cross_year_comparisons_{date.today().strftime("%Y%m%d")}.png"
@@ -84,7 +84,7 @@ except Exception:
     # ---- FOR INTERACTIVE REPL USE
     COMPARE = False
 
-COMPARE=True
+COMPARE=False
 # REMOVE AGE-1 (I.E., AGE-2+ ONLY)?
 REMOVE_AGE1 = True
 
@@ -181,10 +181,12 @@ else:
 AGE1_DOMINATED_HAULS = []
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # HAUL STRATIFICATION FILE
+#HAUL_STRATA_FILE = Path(DATA_ROOT / "Stratification/")
 # ------------------------------------
 # Stage 2: Stratification + join stage
 # ------------------------------------
 # Load strata file
+#HAUL_STRATA_FILE = Path(DATA_ROOT / "Stratification/")
 logging.info(
     "Loading stratification files..."
 )
@@ -223,6 +225,13 @@ else:
     )    
 
 # READ IN GEOSTRATA FILE
+
+# # HAUL STRATIFICATION SHEET MAP
+# # ---- Valid keys are limited to "ks" and "inpfc"
+# HAUL_STRATA_SHEETS = {
+#     "inpfc": "INPFC",
+#     "ks": "Base KS",
+# }
 # GEOGRAPHIC STRATIFICATION FILE
 GEOSTRATA_FILE=Path(DATA_STRATA_ROOT) / config_strata["geo_strata_file"]
 logging.info(
@@ -248,11 +257,23 @@ else:
     STRATUM_USE="stratum_ks"
     GEOSTRATUM_USE="geostratum_ks"
 
+# GEOSTRATA_FILE = DATA_ROOT / "input/Stratification/Stratification_geographic_Lat_2019_final.xlsx"
+# # GEOGRAPHIC STRATIFICATION SHEET MAP
+# # ---- Valid keys are limited to "ks" and "inpfc"
+# GEOSTRATA_SHEETS = {
+#     "inpfc": "INPFC",
+#     "ks": "stratification1",
+# }
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # KRIGING MESH FILE 
+# KRIGING_MESH_FILE = (
+#     DATA_ROOT / "input/Kriging_files/Kriging_grid_files/krig_grid2_5nm_cut_centroids_2013.xlsx"
+# )
 KRIGING_MESH_FILE = (
     Path(DATA_ROOT) / "Kriging files & parameters/Kriging Grid Files" / config_kriging["mesh_file"]
 )
+# KRIGING MESH SHEET
+#KRIGING_MESH_SHEET = "krigedgrid2_5nm_forChu"
 KRIGING_MESH_SHEET = config_kriging["mesh_sheet"]
 
 ############################### CHANGES FOR NON-EXTRAPOLATION ######################################
@@ -261,21 +282,20 @@ KRIGING_MESH_SHEET = config_kriging["mesh_sheet"]
 # ---- hull method. However, custom functions can be called, such as cropping based on the
 # ---- interpolated boundaries of the survey region. These custom functions can be found in the
 # ---- `FEAT.fun` module.
+CROP_METHOD = feat.transect_ends_crop
 # KRIGING MESH PROCESSING: CROPPING FUNCTION PARAMETERS
 # ---- For the FEAT-specific `transect_ends_crop` function, a transect-region mapping function
 # ---- must be provided. These can be year-specific and can be found in the `FEAT.parameters`
 # ---- module. This transect mesh region mapping function tracks the original transect region
 # ---- definition files used in the MATLAB EchoPro distribution.
-if EXTRAP_FLAG==False:
-    CROP_METHOD = feat.transect_ends_crop
-#TRANSECT_MESH_REGION_MAP = feat_parameters.transect_mesh_region_2019
-    TRANSECT_MESH_REGION_MAP_STRING = ("transect_mesh_region_"+runyearstr)
-    TRANSECT_MESH_REGION_MAP = getattr(feat_parameters, TRANSECT_MESH_REGION_MAP_STRING)
+TRANSECT_MESH_REGION_MAP = feat_parameters.transect_mesh_region_2019
 ####################################################################################################
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # KRIGING AND VARIOGRAM PARAMETERS FILE
 # KRIGING_VARIOGRAM_PARAMETERS_FILE = (
+#     DATA_ROOT / "input/Kriging_files/default_vario_krig_settings_2019_US_CAN.xlsx"
+# )
 KRIGING_VARIOGRAM_PARAMETERS_FILE = (
     DATA_ROOT / "Kriging Files & parameters" / runyearstr / config_kriging["variogram_parameters_file"]
 )
@@ -285,11 +305,14 @@ KRIGING_VARIOGRAM_PARAMETERS_SHEET = config_kriging["variogram_parameters_sheet"
 OPTIMIZE_VARIOGRAM = False
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # # 200m ISOBATH FILE
-
+# ISOBATH_FILE = (
+#     DATA_ROOT / "input/Kriging_files/Kriging_grid_files/transformation_isobath_coordinates.xlsx"
+# )
 ISOBATH_FILE = (
     DATA_ROOT / "Kriging files & parameters/Kriging Grid Files" / config_kriging["isobath_file"]
 )
 # 200m ISOBATH SHEET
+#ISOBATH_SHEET = "Smoothing_EasyKrig"
 ISOBATH_SHEET = config_kriging["isobath_sheet"]
 
 
@@ -307,6 +330,10 @@ NASC_EXPORTS_FILES = Path(DATA_ROOT) / "Exports/EchoPro_Exports" / config_nasc["
 NASC_EXPORTS_SHEET = config_nasc["formatted_exports_sheet"] #e.g. "Sheet1"
 NASC_EXPORTS_PATH =Path(DATA_ROOT) / "Exports"/ runyearstr  # pathfor Echoview exports
 
+#ECHOPOP_PATTERNS = {
+#    "transect": "transect_population_results_full.xlsx",
+#    "kriging":  "kriged_biomass_mesh_full.xlsx",
+#}
 
 ECHOPOP_PATTERNS = {
     "transect": r"^EchoPro_un-kriged_output(?:-.*)?_0\.xlsx$",
@@ -341,6 +368,14 @@ logging.basicConfig(
 # ==================================================================================================
 # DATA INGESTION 
 # ==================================================================================================
+# FORMAT HAUL-BASED UID 
+# logging.info(f"Creating haul-based UID...")
+# HAUL_UID_CONFIG = {
+#     "ship_id": {"US": SHIP_US, "CAN": SHIP_CAN},
+#     "survey_id": {"US": SURVEY_US, "CAN": SURVEY_CAN},
+#     "species_id": SPECIES_ID,
+#     "haul_offset": CAN_HAUL_OFFSET
+# }
 
 # INGEST NASC DATA 
 if NASC_PREPROCESSED:
@@ -388,7 +423,6 @@ else:
     # EXPORT REGION NAME MAPPING
     REGION_NAME_EXPR_DICT = {
         "REGION_CLASS": {
-            "Age-0 Hake": "^(?:h0a(?![a-z]|m))",
             "Age-1 Hake": "^(?:h1a(?![a-z]|m))",
             "Age-1 Hake Mix": "^(?:h1am(?![a-z]|1a))",
             "Hake": "^(?:h(?![a-z]|1a)|hake(?![_]))",
@@ -466,6 +500,57 @@ logging.info(
 # DROP TRANSECTS
 df_nasc = utils.apply_filters(df_nasc, include_filter={"transect_num": np.arange(1, 200)})
 # # ==================================================================================================
+# # INGEST BIODATA
+# logging.info(
+#     f"Beginning biodata ingestion for: '{BIODATA_FILE.as_posix()}'."
+# )
+
+# BIODATA DATAFRAME COLUMN NAME MAPPING
+# FEAT_TO_ECHOPOP_BIODATA_COLUMNS = {
+#     "frequency": "length_count",
+#     "haul": "haul_num",
+#     "haul ": "haul_num",
+#     "weight_in_haul": "weight",
+# }
+
+# # BIODATA LABEL MAPPING
+# BIODATA_SEX = {
+#     "sex": {
+#         1: "male",
+#         2: "female",
+#         3: "unsexed"
+#     }
+# }
+
+
+# READ IN DATA
+# dict_df_bio = ingestion.load_biological_data(
+#     biodata_filepath=BIODATA_FILE, 
+#     biodata_sheet_map=BIODATA_SHEETS, 
+#     column_name_map=FEAT_TO_ECHOPOP_BIODATA_COLUMNS, 
+#     survey_subset=BIODATA_SHIP_SPECIES, 
+#     biodata_label_map=BIODATA_SEX,
+#     haul_uid_config=HAUL_UID_CONFIG,
+# )
+
+
+# # Ingest biodata
+# dict_df_bio = ingest.load_biological_data(
+#     biodata_filepath=BIODATA_FILE, 
+#     biodata_sheet_map=BIODATA_SHEETS, 
+#     column_name_map=RENAME_BIODATA_COLUMNS, 
+#     survey_subset=BIODATA_SHIP_SPECIES, 
+#     biodata_label_map=BIODATA_SEX,
+#     haul_uid_config=HAUL_UID_CONFIG,
+# )
+
+# # Remove specimen-only hauls
+# feat_biology.drop_specimen_only_hauls(dict_df_bio)
+
+# logging.info(
+#     "Biodata ingestion complete\n"
+#     "'dict_df_bio' created."
+# )
 
 # AGE-1 DOMINATED HAUL REMOVAL
 if len(AGE1_DOMINATED_HAULS) > 0:
@@ -482,7 +567,53 @@ if len(AGE1_DOMINATED_HAULS) > 0:
         f"The following age-1 dominated haul numbers were successfully removed from the biodata:\n"
         f"{', '.join(map(str, AGE1_DOMINATED_HAULS))}."
     )
+# ==================================================================================================
+# # INGEST STRATIFICATION DATA
+# logging.info(
+#     "Loading stratification files..."
+# )
 
+# # HAUL-BASED STRATIFICATION DATAFRAME COLUMN NAME MAPPING
+# FEAT_TO_ECHOPOP_STRATA_COLUMNS = {
+#     "fraction_hake": "nasc_proportion",
+#     "haul": "haul_num",
+#     "stratum": "stratum_num",
+# }
+
+# # READ IN STRATA FILE 
+# logging.info(
+#     f"Load in haul-based stratification: '{HAUL_STRATA_FILE.as_posix()}'."
+# )
+# df_dict_strata = ingestion.load_strata(
+#     strata_filepath=HAUL_STRATA_FILE, 
+#     strata_sheet_map=HAUL_STRATA_SHEETS, 
+#     column_name_map=FEAT_TO_ECHOPOP_STRATA_COLUMNS,
+#     haul_uid_config=HAUL_UID_CONFIG,
+# )
+# logging.info(
+#     "Haul-based stratification loading complete\n"
+#     "'df_dict_strata' created."
+# )
+
+# GEOGRAPHIC-BASED STRATIFICATION DATAFRAME COLUMN NAME MAPPING
+#FEAT_TO_ECHOPOP_GEOSTRATA_COLUMNS = {
+#     "latitude (upper limit)": "northlimit_latitude",
+#     "stratum": "stratum_num",
+# }
+
+# # READ IN GEOSTRATA FILE
+# logging.info(
+#     f"Load in geographic-based stratification: '{GEOSTRATA_FILE.as_posix()}'."
+# )
+# df_dict_geostrata = ingestion.load_geostrata(
+#     geostrata_filepath=GEOSTRATA_FILE, 
+#     geostrata_sheet_map=GEOSTRATA_SHEETS, 
+#     column_name_map=FEAT_TO_ECHOPOP_GEOSTRATA_COLUMNS
+# )
+# logging.info(
+#     "Geographic-based stratification loading complete\n"
+#     "'df_dict_geostrata' created."
+# )
 # ==================================================================================================
 # LOAD KRIGING MESH FILE
 logging.info(
@@ -616,6 +747,15 @@ df_mesh = ingestion.join_geostrata_by_latitude(
 logging.info("Strata application complete!")
 # ==================================================================================================
 # # BINIFY DATA 
+# logging.info(
+#     "Binning biodata ['dict_df_bio'] into discrete age and length bins\n"
+#     "     Age bins: [1, 2, 3, ..., 20, 21, 22]\n"
+#     "     Length bins: [2.0, 4.0, 6.0, ... 76.0, 78.0, 80.0]\n"
+#     "     New columns:\n"
+#     "         Age: 'age_bin'\n"
+#     "         Length: 'length_bin'"
+# )
+
 # ---------------------------
 # Stage 3: Analysis bin setup
 # ---------------------------
@@ -639,7 +779,17 @@ LENGTH_BINS = np.linspace(
 utils.binify(
     data=dict_df_bio, bins=LENGTH_BINS, bin_column=config_analysis["length"]["column"], 
 )
+# # AGE-BINS
+# AGE_BINS = np.linspace(start=1., stop=22, num=22)
+# utils.binify(
+#     data=dict_df_bio, bins=AGE_BINS, bin_column="age",
+# )
 
+# # LENGTH-BINS
+# LENGTH_BINS = np.linspace(start=2., stop=80., num=40)
+# utils.binify(
+#     data=dict_df_bio, bins=LENGTH_BINS, bin_column="length", 
+# )
 logging.info("Age and length binning complete!")
 # ==================================================================================================
 # FIT LENGTH-WEIGHT REGRESSION
@@ -819,6 +969,8 @@ MODEL_PARAMETERS = {
     },
     #"stratify_by": ["stratum_ks"],
     "stratify_by": [STRATUM_USE],
+    #"expected_strata": df_dict_strata["ks"].stratum_num.unique(),
+    #"expected_strata": np.sort(df_dict_strata["ks"].stratum_num.unique()),
     "expected_strata": np.sort(df_dict_strata[STRATA_TYPE].stratum_num.unique()),
     "impute_missing_strata": True,
     "haul_replicates": True,
@@ -1168,6 +1320,9 @@ logging.info("Kriging-class object 'krg' created...")
 # REGISTER KRIGING METHOD
 krg.register_search_strategy("FEAT_strategy", feat.western_boundary_search_strategy)
 # ---- Parameterize
+
+# ---- Register the custom search strategy
+#krg.register_search_strategy("FEAT_strategy", KRIGING_SEARCH_STRATEGY)
 logging.info("Custom nearest neighbor search strategy registered by 'krg' as 'FEAT_strategy'.")
 # ---- Define keyword arguments
 transect_western_extents = feat.get_survey_western_extents(
@@ -1178,6 +1333,7 @@ FEAT_STRATEGY_KWARGS = {
 }
 
 # RUN KRIGING
+
 
 ############################### CHANGES FOR NON-EXTRAPOLATION ######################################
 # ---- Crop mesh
@@ -1619,271 +1775,337 @@ reporter.transect_population_results_report(
     stratum_name=STRATUM_USE,
 )
 
+# CACHE_DIR = Path("C:\\rthomas\\Projects\\EchoPop_validation\\comparisons\\.cache")
+# MAX_WORKERS = None #no parallization
+# ECHOPRO_DATASETS, ECHOPOP_DATASETS = compare.load_all_geodata_reports(
+#     years=Years,
+#     echopro_root=ECHOPRO_ROOT,
+#     echopop_root=ECHOPOP_ROOT,
+#     echopop_patterns=ECHOPOP_PATTERNS,
+#     echopro_patterns=ECHOPRO_PATTERNS,
+#     cache_dir=CACHE_DIR,
+#     max_workers=MAX_WORKERS,
+#     verbose=True
+# )
+
+# # Compute the differences in terms of magnitude and percentage
+# magnitude_differences, percent_differences = compare.compute_dataset_differences(
+#     echopro_datasets=ECHOPRO_DATASETS,
+#     echopop_datasets=ECHOPOP_DATASETS,
+# )
+
+# # Plot the percent differences
+# compare.plot_dataset_differences(
+#     percent_differences,
+#     save_filepath=SAVE_FILEPATH,
+# )
+
 # ==================================================================================================
 # [OPTIONAL] REPORT COMPARISONS WITH ECHOPRO
 # ==================================================================================================
-if COMPARE:
+#if COMPARE:
     # Dictionary map
-    ## Need to find in the directory the names of the files of the right type and put them in here
-    # Get files in EchoPro directory
-    # might be able to get some help from _resolve_geodata_file
-
-    # Match to the appropriate one
-    transect_0_excel_file = compare._resolve_geodata_file(
-    filepath=ECHOPRO_REPORTS_DIR, 
-    dataset= "echopro", 
-    type= "transect", 
-    echopop_patterns=ECHOPOP_PATTERNS, 
-    echopro_patterns=ECHOPRO_PATTERNS)
-
-    kriged_0_excel_file = compare._resolve_geodata_file(
-    filepath=ECHOPRO_REPORTS_DIR, 
-    dataset= "echopro", 
-    type= "kriging", 
-    echopop_patterns=ECHOPOP_PATTERNS, 
-    echopro_patterns=ECHOPRO_PATTERNS)
-
-# I think the ones with _1 below are not actually used, so don't need to worry about finding them.
-    ECHOPRO_TO_ECHOPOP_FILE_MAP = {
-        "aged_length_haul_counts": {
-            "echopro": "aged_len_haul_counts_table.xlsx",
-            "echopop": config_output["aged_length_haul_counts"]
-        },
-        "total_length_haul_counts": {
-            "echopro": "total_len_haul_counts_table.xlsx",
-            "echopop": config_output["total_length_haul_counts"]
-        },
-        "aged_kriged_mesh_biomass_full": {
-            "echopro": "EchoPro_kriged_aged_output-2019_1.xlsx",
-            "echopop": config_output["kriged_aged_biomass_mesh_full"]
-        },
-        "aged_kriged_mesh_biomass_subset": {
-            "echopro": "EchoPro_kriged_aged_output-2019_0.xlsx",
-            "echopop": config_output["kriged_aged_biomass_mesh_nonzero"]
-        },
-        "kriged_mesh_biomass_full": {
-            #"echopro": "EchoPro_kriged_output-04-Sep-2024_0.xlsx",
-            "echopro": kriged_0_excel_file,
-            "echopop": config_output["kriged_biomass_mesh_full"]
-        },
-        "kriged_mesh_biomass_subset": {
-            "echopro": "EchoPro_kriged_output-04-Sep-2024_1.xlsx",
-            "echopop": config_output["kriged_biomass_mesh_nonzero"]
-        },
-        "kriging_input": {
-            "echopro": "kriging_input.xlsx",
-            "echopop": config_output["kriging_input_report"]
-        },
-        "kriged_length_age_abundance": {
-            "echopro": "kriged_len_age_abundance_table.xlsx",
-            "echopop": config_output["kriged_length_age_abundance_report"]
-        },
-        "kriged_length_age_biomass": {
-            "echopro": "kriged_len_age_biomass_table.xlsx",
-            "echopop": config_output["kriged_length_age_biomass_report"]
-        },
-        "aged_transect_biomass_full": {
-            "echopro": "EchoPro_un-kriged_aged_output-2019_0.xlsx",
-            "echopop": config_output["transect_aged_biomass_report_full"]
-        },
-        "aged_transect_biomass_subset": {
-            "echopro": "EchoPro_un-kriged_aged_output-2019_1.xlsx",
-            "echopop": config_output["transect_aged_biomass_report_nonzero"]
-        },
-        "transect_length_age_abundance": {
-            "echopro": "un-kriged_len_age_abundance_table.xlsx",
-            "echopop": config_output["transect_length_age_abundance_report"]
-        },
-        "transect_length_age_biomass": {
-            "echopro": "un-kriged_len_age_biomass_table.xlsx",
-            "echopop": config_output["transect_length_age_biomass_report"]
-        },
-        "transect_results_full": {
-            #"echopro": "EchoPro_un-kriged_output-04-Sep-2024_0.xlsx",
-            "echopro": transect_0_excel_file,
-            "echopop": config_output["transect_population_results_full"]
-        },
-        "transect_results_subset": {
-            "echopro": "EchoPro_un-kriged_output-04-Sep-2024_1.xlsx",
-            "echopop": config_output["transect_population_results_nonzero"]
-        }
-    }
-
-    # AGED LENGTH HAUL COUNTS
-    echopro_aged_length_haul_counts = compare.read_pivot_table_report(
-        ECHOPRO_REPORTS_DIR / ECHOPRO_TO_ECHOPOP_FILE_MAP["aged_length_haul_counts"]["echopro"]
-    )
-    echopop_aged_length_haul_counts = compare.read_pivot_table_report(
-        REPORTS_DIR / ECHOPRO_TO_ECHOPOP_FILE_MAP["aged_length_haul_counts"]["echopop"]
-    )
-    compare.plot_haul_count_comparisons(
-        echopro=echopro_aged_length_haul_counts, 
-        echopop=echopop_aged_length_haul_counts,
-        save_filepath=COMPARISONS_DIR / "aged_length_haul_counts.png",
-        show_plot=SHOW_PLOT
-    )
+    # ECHOPRO_TO_ECHOPOP_FILE_MAP = {
+    #     "aged_length_haul_counts": {
+    #         "echopro": "aged_len_haul_counts_table.xlsx",
+    #         "echopop": "aged_length_haul_counts.xlsx"
+    #     },
+    #     "total_length_haul_counts": {
+    #         "echopro": "total_len_haul_counts_table.xlsx",
+    #         "echopop": "total_length_haul_counts.xlsx"
+    #     },
+    #     "aged_kriged_mesh_biomass_full": {
+    #         "echopro": "EchoPro_kriged_aged_output-2019_1.xlsx",
+    #         "echopop": "kriged_aged_biomass_mesh_full.xlsx"
+    #     },
+    #     "aged_kriged_mesh_biomass_subset": {
+    #         "echopro": "EchoPro_kriged_aged_output-2019_0.xlsx",
+    #         "echopop": "kriged_aged_biomass_mesh_nonzero.xlsx"
+    #     },
+    #     "kriged_mesh_biomass_full": {
+    #         "echopro": "EchoPro_kriged_output-28-Jan-2026_0.xlsx",
+    #         "echopop": "kriged_biomass_mesh_full.xlsx"
+    #     },
+    #     "kriged_mesh_biomass_subset": {
+    #         "echopro": "EchoPro_kriged_output-28-Jan-2026_1.xlsx",
+    #         "echopop": "kriged_biomass_mesh_nonzero.xlsx"
+    #     },
+    #     "kriging_input": {
+    #         "echopro": "kriging_input.xlsx",
+    #         "echopop": "kriging_input_report.xlsx"
+    #     },
+    #     "kriged_length_age_abundance": {
+    #         "echopro": "kriged_len_age_abundance_table.xlsx",
+    #         "echopop": "kriged_length_age_abundance_report.xlsx"
+    #     },
+    #     "kriged_length_age_biomass": {
+    #         "echopro": "kriged_len_age_biomass_table.xlsx",
+    #         "echopop": "kriged_length_age_biomass_report.xlsx"
+    #     },
+    #     "aged_transect_biomass_full": {
+    #         "echopro": "EchoPro_un-kriged_aged_output-2019_0.xlsx",
+    #         "echopop": "transect_aged_biomass_report_full.xlsx"
+    #     },
+    #     "aged_transect_biomass_subset": {
+    #         "echopro": "EchoPro_un-kriged_aged_output-2019_1.xlsx",
+    #         "echopop": "transect_aged_biomass_report_nonzero.xlsx"
+    #     },
+    #     "transect_length_age_abundance": {
+    #         "echopro": "un-kriged_len_age_abundance_table.xlsx",
+    #         "echopop": "transect_length_age_abundance_report.xlsx"
+    #     },
+    #     "transect_length_age_biomass": {
+    #         "echopro": "un-kriged_len_age_biomass_table.xlsx",
+    #         "echopop": "transect_length_age_biomass_report.xlsx"
+    #     },
+    #     "transect_results_full": {
+    #         "echopro": "EchoPro_un-kriged_output-28-Jan-2026_0.xlsx",
+    #         "echopop": "transect_population_results_full.xlsx"
+    #     },
+    #     "transect_results_subset": {
+    #         "echopro": "EchoPro_un-kriged_output-28-Jan-2026_1.xlsx",
+    #         "echopop": "transect_population_results_nonzero.xlsx"
+    #     }
+    # }
     
-    # TOTAL LENGTH HAUL COUNTS
-    echopro_total_length_haul_counts = compare.read_pivot_table_report(
-        ECHOPRO_REPORTS_DIR / ECHOPRO_TO_ECHOPOP_FILE_MAP["total_length_haul_counts"]["echopro"]
-    )
-    echopop_total_length_haul_counts = compare.read_pivot_table_report(
-        REPORTS_DIR / ECHOPRO_TO_ECHOPOP_FILE_MAP["total_length_haul_counts"]["echopop"]
-    )
-    compare.plot_haul_count_comparisons(
-        echopro=echopro_total_length_haul_counts, 
-        echopop=echopop_total_length_haul_counts,
-        save_filepath=COMPARISONS_DIR / "total_length_haul_counts.png",
-        show_plot=SHOW_PLOT
-    )
+    # ECHOPRO_TO_ECHOPOP_FILE_MAP = {
+    #     "aged_length_haul_counts": {
+    #         "echopro": "aged_len_haul_counts_table.xlsx",
+    #         "echopop": config_output["aged_length_haul_counts"]
+    #     },
+    #     "total_length_haul_counts": {
+    #         "echopro": "total_len_haul_counts_table.xlsx",
+    #         "echopop": config_output["total_length_haul_counts"]
+    #     },
+    #     "aged_kriged_mesh_biomass_full": {
+    #         "echopro": "EchoPro_kriged_aged_output-2019_1.xlsx",
+    #         "echopop": config_output["kriged_aged_biomass_mesh_full"]
+    #     },
+    #     "aged_kriged_mesh_biomass_subset": {
+    #         "echopro": "EchoPro_kriged_aged_output-2019_0.xlsx",
+    #         "echopop": config_output["kriged_aged_biomass_mesh_nonzero"]
+    #     },
+    #     "kriged_mesh_biomass_full": {
+    #         "echopro": "EchoPro_kriged_output-04-Sep-2024_0.xlsx",
+    #         "echopop": config_output["kriged_biomass_mesh_full"]
+    #     },
+    #     "kriged_mesh_biomass_subset": {
+    #         "echopro": "EchoPro_kriged_output-04-Sep-2024_1.xlsx",
+    #         "echopop": config_output["kriged_biomass_mesh_nonzero"]
+    #     },
+    #     "kriging_input": {
+    #         "echopro": "kriging_input.xlsx",
+    #         "echopop": config_output["kriging_input_report"]
+    #     },
+    #     "kriged_length_age_abundance": {
+    #         "echopro": "kriged_len_age_abundance_table.xlsx",
+    #         "echopop": config_output["kriged_length_age_abundance_report"]
+    #     },
+    #     "kriged_length_age_biomass": {
+    #         "echopro": "kriged_len_age_biomass_table.xlsx",
+    #         "echopop": config_output["kriged_length_age_biomass_report"]
+    #     },
+    #     "aged_transect_biomass_full": {
+    #         "echopro": "EchoPro_un-kriged_aged_output-2019_0.xlsx",
+    #         "echopop": config_output["transect_aged_biomass_report_full"]
+    #     },
+    #     "aged_transect_biomass_subset": {
+    #         "echopro": "EchoPro_un-kriged_aged_output-2019_1.xlsx",
+    #         "echopop": config_output["transect_aged_biomass_report_nonzero"]
+    #     },
+    #     "transect_length_age_abundance": {
+    #         "echopro": "un-kriged_len_age_abundance_table.xlsx",
+    #         "echopop": config_output["transect_length_age_abundance_report"]
+    #     },
+    #     "transect_length_age_biomass": {
+    #         "echopro": "un-kriged_len_age_biomass_table.xlsx",
+    #         "echopop": config_output["transect_length_age_biomass_report"]
+    #     },
+    #     "transect_results_full": {
+    #         "echopro": "EchoPro_un-kriged_output-04-Sep-2024_0.xlsx",
+    #         "echopop": config_output["transect_population_results_full"]
+    #     },
+    #     "transect_results_subset": {
+    #         "echopro": "EchoPro_un-kriged_output-04-Sep-2024_1.xlsx",
+    #         "echopop": config_output["transect_population_results_nonzero"]
+    #     }
+    # }
+
+    # # AGED LENGTH HAUL COUNTS
+    # echopro_aged_length_haul_counts = compare.read_pivot_table_report(
+    #     ECHOPRO_REPORTS_DIR / ECHOPRO_TO_ECHOPOP_FILE_MAP["aged_length_haul_counts"]["echopro"]
+    # )
+    # echopop_aged_length_haul_counts = compare.read_pivot_table_report(
+    #     REPORTS_DIR / ECHOPRO_TO_ECHOPOP_FILE_MAP["aged_length_haul_counts"]["echopop"]
+    # )
+    # compare.plot_haul_count_comparisons(
+    #     echopro=echopro_aged_length_haul_counts, 
+    #     echopop=echopop_aged_length_haul_counts,
+    #     save_filepath=COMPARISONS_DIR / "aged_length_haul_counts.png",
+    #     show_plot=SHOW_PLOT
+    # )
     
-    # KRIGED LENGTH-AGE ABUNDANCE
-    echopro_kriged_abundance_table = compare.read_pivot_table_report(
-        filepath=(
-            ECHOPRO_REPORTS_DIR / 
-            ECHOPRO_TO_ECHOPOP_FILE_MAP["kriged_length_age_abundance"]["echopro"]
-        )
-    )
-    echopop_kriged_abundance_table = compare.read_pivot_table_report(
-        filepath=REPORTS_DIR / ECHOPRO_TO_ECHOPOP_FILE_MAP["kriged_length_age_abundance"]["echopop"]
-    )
-    compare.plot_population_table_comparisons(
-        echopro=echopro_kriged_abundance_table, 
-        echopop=echopop_kriged_abundance_table, 
-        save_filepath=COMPARISONS_DIR / "kriged_length_age_abundance.png",
-        show_plot=SHOW_PLOT
-    )
+    # # TOTAL LENGTH HAUL COUNTS
+    # echopro_total_length_haul_counts = compare.read_pivot_table_report(
+    #     ECHOPRO_REPORTS_DIR / ECHOPRO_TO_ECHOPOP_FILE_MAP["total_length_haul_counts"]["echopro"]
+    # )
+    # echopop_total_length_haul_counts = compare.read_pivot_table_report(
+    #     REPORTS_DIR / ECHOPRO_TO_ECHOPOP_FILE_MAP["total_length_haul_counts"]["echopop"]
+    # )
+    # compare.plot_haul_count_comparisons(
+    #     echopro=echopro_total_length_haul_counts, 
+    #     echopop=echopop_total_length_haul_counts,
+    #     save_filepath=COMPARISONS_DIR / "total_length_haul_counts.png",
+    #     show_plot=SHOW_PLOT
+    # )
     
-    # TRANSECT LENGTH-AGE ABUNDANCE
-    echopro_transect_abundance_table = compare.read_pivot_table_report(
-        filepath=(
-            ECHOPRO_REPORTS_DIR / 
-            ECHOPRO_TO_ECHOPOP_FILE_MAP["transect_length_age_abundance"]["echopro"]
-        )
-    )
-    echopop_transect_abundance_table = compare.read_pivot_table_report(
-        filepath=(
-            REPORTS_DIR / ECHOPRO_TO_ECHOPOP_FILE_MAP["transect_length_age_abundance"]["echopop"]
-        )
-    )
-    compare.plot_population_table_comparisons(
-        echopro=echopro_transect_abundance_table, 
-        echopop=echopop_transect_abundance_table, 
-        log_transform=True,
-        save_filepath=COMPARISONS_DIR / "transect_length_age_abundance.png",
-        show_plot=SHOW_PLOT
-    )
-
-    # KRIGED AGED BIOMASS
-    echopro_kriged_biomass_table = compare.read_pivot_table_report(
-        filepath=(
-            ECHOPRO_REPORTS_DIR / 
-            ECHOPRO_TO_ECHOPOP_FILE_MAP["kriged_length_age_biomass"]["echopro"]
-        )
-    )
-    echopop_kriged_biomass_table = compare.read_pivot_table_report(
-        filepath=REPORTS_DIR / ECHOPRO_TO_ECHOPOP_FILE_MAP["kriged_length_age_biomass"]["echopop"]
-    )
-    compare.plot_population_table_comparisons(
-        echopro=echopro_kriged_biomass_table, 
-        echopop=echopop_kriged_biomass_table, 
-        save_filepath=COMPARISONS_DIR / "kriged_length_age_biomass.png",
-        show_plot=SHOW_PLOT
-    )
-
-    # TRANSECT AGED BIOMASS
-    echopro_transect_biomass_table = compare.read_pivot_table_report(
-        filepath=(
-            ECHOPRO_REPORTS_DIR / 
-            ECHOPRO_TO_ECHOPOP_FILE_MAP["transect_length_age_biomass"]["echopro"]
-        )
-    )
-    echopop_transect_biomass_table = compare.read_pivot_table_report(
-        filepath=REPORTS_DIR / ECHOPRO_TO_ECHOPOP_FILE_MAP["transect_length_age_biomass"]["echopop"]
-    )
-    compare.plot_population_table_comparisons(
-        echopro=echopro_transect_biomass_table, 
-        echopop=echopop_transect_biomass_table, 
-        save_filepath=COMPARISONS_DIR / "transect_length_age_biomass.png",
-        show_plot=SHOW_PLOT
-    )
-
-    # KRIGING INPUTS
-    echopro_kriging_input = compare.read_geodata(
-        filepath=ECHOPRO_REPORTS_DIR / ECHOPRO_TO_ECHOPOP_FILE_MAP["kriging_input"]["echopro"]
-    )
-    echopop_kriging_input = compare.read_geodata(
-        filepath=REPORTS_DIR / ECHOPRO_TO_ECHOPOP_FILE_MAP["kriging_input"]["echopop"]
-    ) 
-
-    compare.plot_geodata(
-        echopro=echopro_kriging_input,
-        echopop=echopop_kriging_input,
-        save_filepath=COMPARISONS_DIR / "kriging_input.png",
-        show_plot=SHOW_PLOT
-    )
-
-    # TRANSECT POPULATION ESTIMATES
-    echopro_transect_estimates = compare.read_geodata(
-        filepath=(
-            ECHOPRO_REPORTS_DIR / ECHOPRO_TO_ECHOPOP_FILE_MAP["transect_results_full"]["echopro"]
-        ),
-    )
-
-    echopop_transect_estimates = compare.read_geodata(
-        filepath=REPORTS_DIR / ECHOPRO_TO_ECHOPOP_FILE_MAP["transect_results_full"]["echopop"],
-    )
-
-    compare.plot_geodata(
-        echopro=echopro_transect_estimates,
-        echopop=echopop_transect_estimates,
-        save_filepath={
-            ("abundance", "abundance_male", "abundance_female"): 
-                COMPARISONS_DIR / "transect_abundances.png",
-            ("number_density", "number_density_male", "number_density_female"):
-                COMPARISONS_DIR / "transect_number_densities.png",
-            ("biomass", "biomass_male", "biomass_female"):
-                COMPARISONS_DIR / "transect_biomasses.png",
-            ("biomass_density", "biomass_density_male", "biomass_density_female"):
-                COMPARISONS_DIR / "transect_biomass_densities.png",
-            "nasc": COMPARISONS_DIR / "transect_nasc.png",
-        },
-        show_plot=SHOW_PLOT
-    )
-
-    # KRIGING POPULATION ESTIMATES
-    echopro_kriged_estimates = compare.read_geodata(
-        filepath=(
-            ECHOPRO_REPORTS_DIR / 
-            ECHOPRO_TO_ECHOPOP_FILE_MAP["kriged_mesh_biomass_full"]["echopro"]
-        ),
-    )
-
-    echopop_kriged_estimates = compare.read_geodata(
-        filepath=REPORTS_DIR / ECHOPRO_TO_ECHOPOP_FILE_MAP["kriged_mesh_biomass_full"]["echopop"],
-    )
+    # # KRIGED LENGTH-AGE ABUNDANCE
+    # echopro_kriged_abundance_table = compare.read_pivot_table_report(
+    #     filepath=(
+    #         ECHOPRO_REPORTS_DIR / 
+    #         ECHOPRO_TO_ECHOPOP_FILE_MAP["kriged_length_age_abundance"]["echopro"]
+    #     )
+    # )
+    # echopop_kriged_abundance_table = compare.read_pivot_table_report(
+    #     filepath=REPORTS_DIR / ECHOPRO_TO_ECHOPOP_FILE_MAP["kriged_length_age_abundance"]["echopop"]
+    # )
+    # compare.plot_population_table_comparisons(
+    #     echopro=echopro_kriged_abundance_table, 
+    #     echopop=echopop_kriged_abundance_table, 
+    #     save_filepath=COMPARISONS_DIR / "kriged_length_age_abundance.png",
+    #     show_plot=SHOW_PLOT
+    # )
     
-    logging.info(
-        f"Kriged population estimate differences [total]: \n"
-        f"  BIOMASS\n"
-        f"  -------\n"
-        f"  EchoPro: {round(echopro_kriged_estimates["biomass"].sum() * 1e-6)} kmt\n"
-        f"  Echopop: {round(echopop_kriged_estimates["biomass"].sum() * 1e-6)} kmt\n"
-        f"  ABUNDANCE\n"
-        f"  ---------\n"
-        f"  EchoPro: {round(echopro_kriged_estimates["abundance"].sum())} fish\n"
-        f"  Echopop: {round(echopop_kriged_estimates["abundance"].sum())} fish"
-    )
+    # # TRANSECT LENGTH-AGE ABUNDANCE
+    # echopro_transect_abundance_table = compare.read_pivot_table_report(
+    #     filepath=(
+    #         ECHOPRO_REPORTS_DIR / 
+    #         ECHOPRO_TO_ECHOPOP_FILE_MAP["transect_length_age_abundance"]["echopro"]
+    #     )
+    # )
+    # echopop_transect_abundance_table = compare.read_pivot_table_report(
+    #     filepath=(
+    #         REPORTS_DIR / ECHOPRO_TO_ECHOPOP_FILE_MAP["transect_length_age_abundance"]["echopop"]
+    #     )
+    # )
+    # compare.plot_population_table_comparisons(
+    #     echopro=echopro_transect_abundance_table, 
+    #     echopop=echopop_transect_abundance_table, 
+    #     log_transform=True,
+    #     save_filepath=COMPARISONS_DIR / "transect_length_age_abundance.png",
+    #     show_plot=SHOW_PLOT
+    # )
 
-    compare.plot_geodata(
-        echopro=echopro_kriged_estimates,
-        echopop=echopop_kriged_estimates,
-        save_filepath={
-            ("abundance", "abundance_male", "abundance_female"): 
-                COMPARISONS_DIR / "kriged_abundances.png",
-            ("biomass", "biomass_male", "biomass_female"):
-                COMPARISONS_DIR / "kriged_biomasses.png",
-            "nasc": COMPARISONS_DIR / "kriged_nasc.png",
-        },
-        show_plot=SHOW_PLOT
-    )
+    # # KRIGED AGED BIOMASS
+    # echopro_kriged_biomass_table = compare.read_pivot_table_report(
+    #     filepath=(
+    #         ECHOPRO_REPORTS_DIR / 
+    #         ECHOPRO_TO_ECHOPOP_FILE_MAP["kriged_length_age_biomass"]["echopro"]
+    #     )
+    # )
+    # echopop_kriged_biomass_table = compare.read_pivot_table_report(
+    #     filepath=REPORTS_DIR / ECHOPRO_TO_ECHOPOP_FILE_MAP["kriged_length_age_biomass"]["echopop"]
+    # )
+    # compare.plot_population_table_comparisons(
+    #     echopro=echopro_kriged_biomass_table, 
+    #     echopop=echopop_kriged_biomass_table, 
+    #     save_filepath=COMPARISONS_DIR / "kriged_length_age_biomass.png",
+    #     show_plot=SHOW_PLOT
+    # )
+
+    # # TRANSECT AGED BIOMASS
+    # echopro_transect_biomass_table = compare.read_pivot_table_report(
+    #     filepath=(
+    #         ECHOPRO_REPORTS_DIR / 
+    #         ECHOPRO_TO_ECHOPOP_FILE_MAP["transect_length_age_biomass"]["echopro"]
+    #     )
+    # )
+    # echopop_transect_biomass_table = compare.read_pivot_table_report(
+    #     filepath=REPORTS_DIR / ECHOPRO_TO_ECHOPOP_FILE_MAP["transect_length_age_biomass"]["echopop"]
+    # )
+    # compare.plot_population_table_comparisons(
+    #     echopro=echopro_transect_biomass_table, 
+    #     echopop=echopop_transect_biomass_table, 
+    #     save_filepath=COMPARISONS_DIR / "transect_length_age_biomass.png",
+    #     show_plot=SHOW_PLOT
+    # )
+
+    # # KRIGING INPUTS
+    # echopro_kriging_input = compare.read_geodata(
+    #     filepath=ECHOPRO_REPORTS_DIR / ECHOPRO_TO_ECHOPOP_FILE_MAP["kriging_input"]["echopro"]
+    # )
+    # echopop_kriging_input = compare.read_geodata(
+    #     filepath=REPORTS_DIR / ECHOPRO_TO_ECHOPOP_FILE_MAP["kriging_input"]["echopop"]
+    # ) 
+
+    # compare.plot_geodata(
+    #     echopro=echopro_kriging_input,
+    #     echopop=echopop_kriging_input,
+    #     save_filepath=COMPARISONS_DIR / "kriging_input.png",
+    #     show_plot=SHOW_PLOT
+    # )
+
+    # # TRANSECT POPULATION ESTIMATES
+    # echopro_transect_estimates = compare.read_geodata(
+    #     filepath=(
+    #         ECHOPRO_REPORTS_DIR / ECHOPRO_TO_ECHOPOP_FILE_MAP["transect_results_full"]["echopro"]
+    #     ),
+    # )
+
+    # echopop_transect_estimates = compare.read_geodata(
+    #     filepath=REPORTS_DIR / ECHOPRO_TO_ECHOPOP_FILE_MAP["transect_results_full"]["echopop"],
+    # )
+
+    # compare.plot_geodata(
+    #     echopro=echopro_transect_estimates,
+    #     echopop=echopop_transect_estimates,
+    #     save_filepath={
+    #         ("abundance", "abundance_male", "abundance_female"): 
+    #             COMPARISONS_DIR / "transect_abundances.png",
+    #         ("number_density", "number_density_male", "number_density_female"):
+    #             COMPARISONS_DIR / "transect_number_densities.png",
+    #         ("biomass", "biomass_male", "biomass_female"):
+    #             COMPARISONS_DIR / "transect_biomasses.png",
+    #         ("biomass_density", "biomass_density_male", "biomass_density_female"):
+    #             COMPARISONS_DIR / "transect_biomass_densities.png",
+    #         "nasc": COMPARISONS_DIR / "transect_nasc.png",
+    #     },
+    #     show_plot=SHOW_PLOT
+    # )
+
+    # # KRIGING POPULATION ESTIMATES
+    # echopro_kriged_estimates = compare.read_geodata(
+    #     filepath=(
+    #         ECHOPRO_REPORTS_DIR / 
+    #         ECHOPRO_TO_ECHOPOP_FILE_MAP["kriged_mesh_biomass_full"]["echopro"]
+    #     ),
+    # )
+
+    # echopop_kriged_estimates = compare.read_geodata(
+    #     filepath=REPORTS_DIR / ECHOPRO_TO_ECHOPOP_FILE_MAP["kriged_mesh_biomass_full"]["echopop"],
+    # )
+    
+    # logging.info(
+    #     f"Kriged population estimate differences [total]: \n"
+    #     f"  BIOMASS\n"
+    #     f"  -------\n"
+    #     f"  EchoPro: {round(echopro_kriged_estimates["biomass"].sum() * 1e-6)} kmt\n"
+    #     f"  Echopop: {round(echopop_kriged_estimates["biomass"].sum() * 1e-6)} kmt\n"
+    #     f"  ABUNDANCE\n"
+    #     f"  ---------\n"
+    #     f"  EchoPro: {round(echopro_kriged_estimates["abundance"].sum())} fish\n"
+    #     f"  Echopop: {round(echopop_kriged_estimates["abundance"].sum())} fish"
+    # )
+
+    # compare.plot_geodata(
+    #     echopro=echopro_kriged_estimates,
+    #     echopop=echopop_kriged_estimates,
+    #     save_filepath={
+    #         ("abundance", "abundance_male", "abundance_female"): 
+    #             COMPARISONS_DIR / "kriged_abundances.png",
+    #         ("biomass", "biomass_male", "biomass_female"):
+    #             COMPARISONS_DIR / "kriged_biomasses.png",
+    #         "nasc": COMPARISONS_DIR / "kriged_nasc.png",
+    #     },
+    #     show_plot=SHOW_PLOT
+    # )

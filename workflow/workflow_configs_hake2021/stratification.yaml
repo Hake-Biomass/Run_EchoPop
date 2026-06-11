@@ -1,0 +1,20 @@
+data_root: C:/rthomas/Projects/EchoPop_validation/Data
+strata_file: US&CAN strata 2021_EP_14-Jan-2025.xlsx
+strata_sheets: 
+    inpfc: "INPFC"
+    ks: "Base KS"
+rename_strata_columns:
+  fraction_hake: nasc_proportion
+  haul: haul_num
+  stratum: stratum_num
+default_stratum: 0
+geo_strata_file: Stratification_geographic_Lat_2021_EP_14-Jan-2025.xlsx
+geo_strata_sheets: 
+    inpfc: "INPFC"
+    ks: "Base KS"
+rename_geo_strata_columns:
+  latitude (upper limit): "northlimit_latitude"
+  stratum: "stratum_num"
+stratum_source: ks
+stratum_name: stratum_ks
+join_method: uid

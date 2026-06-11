@@ -1,5 +1,5 @@
 ####################################################################################################
-# 2019 
+# 2015
 # ----
 from pathlib import Path
 from echopop.workflow_examples import cli_utils
@@ -31,7 +31,7 @@ except Exception:
     # ---- FOR INTERACTIVE REPL USE
     VERBOSE = True
 #these are things tha may be brought in by cli_utils. For now define here
-Year= 2019
+Year= 2015
 Years=[Year]
 runyearstr=str(Year) #added by RT
 EXTRAP_FLAG= True #True or False
@@ -301,7 +301,7 @@ ISOBATH_SHEET = config_kriging["isobath_sheet"]
 # ALREADY PROCESSED NASC FILE ? 
 # ---- When False, the raw NASC exports will be processed. When True, the pre-formatted NASC 
 # ---- spreadsheet will be read in. This also requires defining `NASC_EXPORTS_SHEET`
-NASC_PREPROCESSED = False
+NASC_PREPROCESSED = True
 # NASC EXPORTS FILE(S)
 NASC_EXPORTS_FILES = Path(DATA_ROOT) / "Exports/EchoPro_Exports" / config_nasc["formatted_exports_file"]
 NASC_EXPORTS_SHEET = config_nasc["formatted_exports_sheet"] #e.g. "Sheet1"

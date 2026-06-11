@@ -1,5 +1,5 @@
 ####################################################################################################
-# 2019 
+# 2017 
 # ----
 from pathlib import Path
 from echopop.workflow_examples import cli_utils
@@ -31,11 +31,11 @@ except Exception:
     # ---- FOR INTERACTIVE REPL USE
     VERBOSE = True
 #these are things tha may be brought in by cli_utils. For now define here
-Year= 2019
+Year= 2017
 Years=[Year]
 runyearstr=str(Year) #added by RT
 EXTRAP_FLAG= True #True or False
-STRATA_TYPE="ks" #ks or inpfc
+STRATA_TYPE="inpfc" #ks or inpfc
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 # Read in configuration
