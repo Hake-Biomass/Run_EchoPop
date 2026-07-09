@@ -1,5 +1,5 @@
 ####################################################################################################
-# 2023
+# 2025
 # ----
 from pathlib import Path
 from echopop.workflow_examples import cli_utils
@@ -31,11 +31,11 @@ except Exception:
     # ---- FOR INTERACTIVE REPL USE
     VERBOSE = True
 #these are things tha may be brought in by cli_utils. For now define here
-Year= 2023
+Year= 2025
 Years=[Year]
 runyearstr=str(Year) #added by RT
 EXTRAP_FLAG= True #True or False
-STRATA_TYPE="ks" #ks or inpfc
+STRATA_TYPE="inpfc" #ks or inpfc
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 # Read in configuration
@@ -381,7 +381,8 @@ else:
     df_intervals, df_exports = ingestion.nasc.merge_echoview_nasc(
         file_directory = NASC_EXPORTS_PATH,
         filename_transect_pattern = r"T(\d+)",
-        default_transect_spacing = 10.0,
+        #default_transect_spacing = 10.0,
+        default_transect_spacing = 15.0,
         default_latitude_threshold = 60.0,
     )
 

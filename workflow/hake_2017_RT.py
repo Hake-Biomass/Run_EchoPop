@@ -408,7 +408,13 @@ else:
         f"---- Processing export region names\n"
         f"     Applying CAN haul number offset: {CAN_HAUL_OFFSET}"
     )
-    
+
+    ## >>>> Filter out any class "unknown" from df_exports (RT added)
+    # In 2015 on x49 there was a region that was named as a hake mix region, but later changed to unknown.  
+    # Regions in EchoPop are filtered by region name, not by class
+    rows = df_exports[df_exports["region_class"] == "unknown"].index
+    df_exports.drop(rows, inplace=True)
+
     # >>>> Maybe insert `utils.add_uid` (or equivalent function)
     df_exports_with_regions = ingestion.nasc.process_region_names(
         nasc_cells=df_exports,

@@ -1,5 +1,5 @@
 ####################################################################################################
-# 2023
+# 2015
 # ----
 from pathlib import Path
 from echopop.workflow_examples import cli_utils
@@ -34,8 +34,8 @@ except Exception:
 Year= 2023
 Years=[Year]
 runyearstr=str(Year) #added by RT
-EXTRAP_FLAG= True #True or False
-STRATA_TYPE="ks" #ks or inpfc
+EXTRAP_FLAG= False #True or False
+STRATA_TYPE="inpfc" #ks or inpfc
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 # Read in configuration
