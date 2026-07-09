@@ -1,5 +1,5 @@
 # Repository created by Rebecca Thomas (rebecca.thomas@noaa.gov) for running refactored EchoPop
-So far just some of 2019 works.
+2015-2025 can be run, although there are issues with 2015 and non-base cases for other years
 
 # Disclaimer
 
