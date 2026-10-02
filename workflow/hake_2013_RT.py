@@ -1,5 +1,5 @@
 ####################################################################################################
-# 2025
+# 2013
 # ----
 from pathlib import Path
 from echopop.workflow_examples import cli_utils
@@ -31,7 +31,7 @@ except Exception:
     # ---- FOR INTERACTIVE REPL USE
     VERBOSE = True
 #these are things tha may be brought in by cli_utils. For now define here
-Year= 2025
+Year= 2013
 Years=[Year]
 runyearstr=str(Year) #added by RT
 EXTRAP_FLAG= True #True or False
@@ -87,6 +87,15 @@ except Exception:
 COMPARE=True
 # REMOVE AGE-1 (I.E., AGE-2+ ONLY)?
 REMOVE_AGE1 = True
+
+DATA_STRATA_ROOT = Path(config_strata["data_root"]) /"Stratification" / runyearstr
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# TRANSECT REGION HAUL MAPPING FILE
+TRANSECT_REGION_HAUL_FILE = Path(DATA_STRATA_ROOT / config_strata["transect_region_haul_file"])
+# TRANSECT REGION HAUL MAPPING SHEET
+TRANSECT_REGION_HAUL_SHEET = config_strata["transect_region_haul_sheet"]
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 
 # ---------------------------
 # Stage 1: Biodata ingestion
@@ -188,7 +197,7 @@ AGE1_DOMINATED_HAULS = []
 logging.info(
     "Loading stratification files..."
 )
-DATA_STRATA_ROOT = Path(config_strata["data_root"]) /"Stratification" / runyearstr
+
 df_dict_strata = ingestion.load_strata(
     strata_filepath=DATA_STRATA_ROOT / config_strata["strata_file"], 
     strata_sheet_map=config_strata["strata_sheets"], 
@@ -381,34 +390,52 @@ else:
     df_intervals, df_exports = ingestion.nasc.merge_echoview_nasc(
         file_directory = NASC_EXPORTS_PATH,
         filename_transect_pattern = r"T(\d+)",
-        #default_transect_spacing = 10.0,
-        default_transect_spacing = 15.0,
+        default_transect_spacing = 10.0,
         default_latitude_threshold = 60.0,
     )
 
-    # EXPORT REGION NAME MAPPING
-    REGION_NAME_EXPR_DICT = {
-        "REGION_CLASS": {
-            "Age-0 Hake": "^(?:h0a(?![a-z]|m))",
-            "Age-1 Hake": "^(?:h1a(?![a-z]|m))",
-            "Age-1 Hake Mix": "^(?:h1am(?![a-z]|1a))",
-            "Hake": "^(?:h(?![a-z]|1a)|hake(?![_]))",
-            "Hake Mix": "^(?:hm(?![a-z]|1a)|hake_mix(?![_]))",
-        },
-        "HAUL_NUM": {
-            "[0-9]+",
-        },
-        "COUNTRY": {
-            "CAN": "^[cC]",
-            "US": "^[uU]",
-        },
-    }    
-    
-    # PROCESS REGION NAMES 
+    # LOAD TRANSECT-REGION-HAUL KEY
     logging.info(
-        f"---- Processing export region names\n"
-        f"     Applying CAN haul number offset: {CAN_HAUL_OFFSET}"
+        "---- Loading transect-region-haul key mapping\n"
     )
+
+    # TRANSECT REGION HAUL KEY NAME MAPPING
+    TRANSECT_REGION_FILE_RENAME = {
+        "tranect": "transect_num",
+        "region id": "region_id",
+        "trawl #": "haul_num",
+    }
+
+    # LOAD in manual key
+    df_transect_region_haul_key = ingestion.nasc.read_transect_region_haul_key(
+        filename=TRANSECT_REGION_HAUL_FILE,
+        sheetname=TRANSECT_REGION_HAUL_SHEET,
+        column_name_map=TRANSECT_REGION_FILE_RENAME
+    )
+
+    # # EXPORT REGION NAME MAPPING
+    # REGION_NAME_EXPR_DICT = {
+    #     "REGION_CLASS": {
+    #         "Age-0 Hake": "^(?:h0a(?![a-z]|m))",
+    #         "Age-1 Hake": "^(?:h1a(?![a-z]|m))",
+    #         "Age-1 Hake Mix": "^(?:h1am(?![a-z]|1a))",
+    #         "Hake": "^(?:h(?![a-z]|1a)|hake(?![_]))",
+    #         "Hake Mix": "^(?:hm(?![a-z]|1a)|hake_mix(?![_]))",
+    #     },
+    #     "HAUL_NUM": {
+    #         "[0-9]+",
+    #     },
+    #     "COUNTRY": {
+    #         "CAN": "^[cC]",
+    #         "US": "^[uU]",
+    #     },
+    # }    
+    
+    # # PROCESS REGION NAMES 
+    # logging.info(
+    #     f"---- Processing export region names\n"
+    #     f"     Applying CAN haul number offset: {CAN_HAUL_OFFSET}"
+    # )
     
 
     ## >>>> Filter out any class "unknown" from df_exports (RT added)
@@ -418,11 +445,11 @@ else:
     df_exports.drop(rows, inplace=True)
 
     # >>>> Maybe insert `utils.add_uid` (or equivalent function)
-    df_exports_with_regions = ingestion.nasc.process_region_names(
-        nasc_cells=df_exports,
-        region_name_expr=REGION_NAME_EXPR_DICT,
-        can_haul_offset=CAN_HAUL_OFFSET,
-    )
+    # df_exports_with_regions = ingestion.nasc.process_region_names(
+    #     nasc_cells=df_exports,
+    #     region_name_expr=REGION_NAME_EXPR_DICT,
+    #     can_haul_offset=CAN_HAUL_OFFSET,
+    # )
     
     # GENERATE TRANSECT-REGION-HAUL KEY
     if REMOVE_AGE1:
@@ -433,11 +460,11 @@ else:
         f"---- Generating transect-region-haul key mapping\n"
         f"     Searching for the export regions: {', '.join(CLASS_REGIONS)}"
     )
-    df_transect_region_haul_key = ingestion.nasc.generate_transect_region_haul_key(
-        region_data=df_exports_with_regions,
-        filter_list=CLASS_REGIONS
-    )
-    
+    # df_transect_region_haul_key = ingestion.nasc.generate_transect_region_haul_key(
+    #     region_data=df_exports_with_regions,
+    #     filter_list=CLASS_REGIONS
+    # )
+
     # AGE-1 DOMINATED HAUL REMOVAL
     if REMOVE_AGE1:
         logging.info(
@@ -449,6 +476,8 @@ else:
             df_transect_region_haul_key, exclude_filter={"haul_num": AGE1_DOMINATED_HAULS}
         )
 
+
+
     # CONSOLIDATE THE EXPORTS WITH TRANSECT-REGION-HAUL MAPPINGS
     logging.info(
         "---- Finalizing NASC export ingestion\n"
@@ -457,7 +486,7 @@ else:
     )
     
     df_nasc = ingestion.nasc.consolidate_echvoiew_nasc(
-        nasc_data=df_exports_with_regions,
+        nasc_data=df_exports,
         interval_data=df_intervals,
         region_class_names=CLASS_REGIONS,
         impute_region_ids=True,

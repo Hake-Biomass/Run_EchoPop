@@ -1,8 +1,9 @@
 ####################################################################################################
-# 2025
+# YEAR - set year below and should work for any year.  Tested 2015-
 # ----
 from pathlib import Path
 from echopop.workflow_examples import cli_utils
+import cli_utils_hake
 from echopop import utils
 from echopop.utils import feat_functions as feat, feat_parameters as feat_parameters
 #from echopop.workflows.nwfsc_feat import functions as feat, parameters as feat_parameters
@@ -26,16 +27,19 @@ from typing import Callable
 # ---- script progresses
 try: 
     # ---- FOR CLI USE
-    VERBOSE = cli_utils.get_verbose()
+    VERBOSE = cli_utils_hake.get_verbose()
 except Exception:
     # ---- FOR INTERACTIVE REPL USE
     VERBOSE = True
 #these are things tha may be brought in by cli_utils. For now define here
-Year= 2025
+Year= 2015
+Year = cli_utils_hake.get_year()
+EXTRAP_FLAG = cli_utils_hake.get_extrap_flag()  #Use --extrap to enable extrapolation or --no-extrap to disable it. Omitting both keeps it enabled.
+STRATA_TYPE = cli_utils_hake.get_strata_type()  #default is KS
 Years=[Year]
 runyearstr=str(Year) #added by RT
-EXTRAP_FLAG= True #True or False
-STRATA_TYPE="ks" #ks or inpfc
+#EXTRAP_FLAG= True #True or False
+#STRATA_TYPE="ks" #ks or inpfc
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 # Read in configuration
@@ -45,7 +49,7 @@ config_analysis = yaml.safe_load(Path("workflow/workflow_configs_hake"+runyearst
 config_kriging = yaml.safe_load(Path("workflow/workflow_configs_hake"+runyearstr+"/kriging_config.yaml").read_text(encoding="utf-8"))
 config_nasc = yaml.safe_load(Path("workflow/workflow_configs_hake"+runyearstr+"/nasc_config.yaml").read_text(encoding="utf-8"))
 config_output = yaml.safe_load(Path("workflow/workflow_configs_hake"+runyearstr+"/output_config.yaml").read_text(encoding="utf-8"))
-
+config_processing=yaml.safe_load(Path("workflow/workflow_configs_hake"+runyearstr+"/processing_config.yaml").read_text(encoding="utf-8"))
 
 # Root data directory
 DATA_ROOT = Path(config_ingest["data_root"])
@@ -88,6 +92,17 @@ COMPARE=True
 # REMOVE AGE-1 (I.E., AGE-2+ ONLY)?
 REMOVE_AGE1 = True
 
+# Flags for later use
+NASC_PREPROCESSED = config_processing["NASC_PREPROCESSED_INPUT"]
+
+####################################################################################################
+# FORMAT LOGGER
+for handler in logging.root.handlers[:]:
+    logging.root.removeHandler(handler)
+    
+logging.basicConfig(
+    level=logging.INFO if VERBOSE else logging.WARNING,
+    format="%(message)s")
 # ---------------------------
 # Stage 1: Biodata ingestion
 # ---------------------------
@@ -95,7 +110,8 @@ REMOVE_AGE1 = True
 BIODATA_FILE = Path(DATA_ROOT / "biological/updated"  / config_ingest["biodata_file"])
 
 logging.info(
-    f"Beginning biodata ingestion for: '{BIODATA_FILE.as_posix()}'."
+    f"Beginning biodata ingestion for: '{BIODATA_FILE.as_posix()}'.\n"
+    f"Year is {runyearstr}."
 )
 
 # Biodata file sheetnames
@@ -226,7 +242,7 @@ else:
 # GEOGRAPHIC STRATIFICATION FILE
 GEOSTRATA_FILE=Path(DATA_STRATA_ROOT) / config_strata["geo_strata_file"]
 logging.info(
-    f"Load in geographic-based stratification: '{GEOSTRATA_FILE.as_posix()}'."
+    f"Load in geographic-based stratification: '{GEOSTRATA_FILE.as_posix()}'.\n"
 )
 
 df_dict_geostrata = ingestion.load_geostrata(
@@ -330,14 +346,7 @@ import xarray as xr
 from lmfit import Parameters
 from echopop.reports import Reporter, compare
 from echopop import geostatistics, inversion, utils
-####################################################################################################
-# FORMAT LOGGER
-for handler in logging.root.handlers[:]:
-    logging.root.removeHandler(handler)
-    
-logging.basicConfig(
-    level=logging.INFO if VERBOSE else logging.WARNING,
-    format="%(message)s")
+
 # ==================================================================================================
 # DATA INGESTION 
 # ==================================================================================================
@@ -381,8 +390,7 @@ else:
     df_intervals, df_exports = ingestion.nasc.merge_echoview_nasc(
         file_directory = NASC_EXPORTS_PATH,
         filename_transect_pattern = r"T(\d+)",
-        #default_transect_spacing = 10.0,
-        default_transect_spacing = 15.0,
+        default_transect_spacing = 10.0,
         default_latitude_threshold = 60.0,
     )
 
@@ -416,6 +424,13 @@ else:
     # Regions in EchoPop are filtered by region name, not by class
     rows = df_exports[df_exports["region_class"] == "unknown"].index
     df_exports.drop(rows, inplace=True)
+
+    ## >>>>> If age-2+ estimate, filter out age-1 regions (RT added)
+    # If just doing age-2+ estimates, add in a filter to remove age-1 class regions.  In 2015,
+    # an age-1 class region with significant backscatter was not named correctly, and was misinterpreted as an adult reigon.
+    if REMOVE_AGE1:
+        rows1 = df_exports[df_exports["region_class"] == "age-1 hake"].index
+        df_exports.drop(rows1, inplace=True)
 
     # >>>> Maybe insert `utils.add_uid` (or equivalent function)
     df_exports_with_regions = ingestion.nasc.process_region_names(
