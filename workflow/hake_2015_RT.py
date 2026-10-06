@@ -383,6 +383,7 @@ else:
         filename_transect_pattern = r"T(\d+)",
         default_transect_spacing = 10.0,
         default_latitude_threshold = 60.0,
+        latlon_suffix="s",
     )
 
     # EXPORT REGION NAME MAPPING

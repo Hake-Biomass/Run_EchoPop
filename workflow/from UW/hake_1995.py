@@ -1,19 +1,8 @@
 ####################################################################################################
-# 2023
+# 1995
 # ----
 from pathlib import Path
 from echopop.workflow_examples import cli_utils
-from echopop import utils
-from echopop.utils import feat_functions as feat, feat_parameters as feat_parameters
-#from echopop.workflows.nwfsc_feat import functions as feat, parameters as feat_parameters
-from echopop.survey import apportionment, biology, proportions, stratified, transect
-import echopop.ingest as ingestion
-import yaml
-from echopop.survey import biology
-import logging
-import copy
-from datetime import date
-from typing import Callable
 ####################################################################################################
 # PARAMETER ENTRY
 # ---------------
@@ -30,150 +19,66 @@ try:
 except Exception:
     # ---- FOR INTERACTIVE REPL USE
     VERBOSE = True
-#these are things tha may be brought in by cli_utils. For now define here
-Year= 2023
-Years=[Year]
-runyearstr=str(Year) #added by RT
-EXTRAP_FLAG= True #True or False
-STRATA_TYPE="ks" #ks or inpfc
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-# Read in configuration
-config_ingest = yaml.safe_load(Path("workflow/workflow_configs_hake"+runyearstr+"/biodata_ingestion.yaml").read_text(encoding="utf-8"))
-config_strata = yaml.safe_load(Path("workflow/workflow_configs_hake"+runyearstr+"/stratification.yaml").read_text(encoding="utf-8"))
-config_analysis = yaml.safe_load(Path("workflow/workflow_configs_hake"+runyearstr+"/biodata_analysis.yaml").read_text(encoding="utf-8"))
-config_kriging = yaml.safe_load(Path("workflow/workflow_configs_hake"+runyearstr+"/kriging_config.yaml").read_text(encoding="utf-8"))
-config_nasc = yaml.safe_load(Path("workflow/workflow_configs_hake"+runyearstr+"/nasc_config.yaml").read_text(encoding="utf-8"))
-config_output = yaml.safe_load(Path("workflow/workflow_configs_hake"+runyearstr+"/output_config.yaml").read_text(encoding="utf-8"))
-
-
-# Root data directory
-DATA_ROOT = Path(config_ingest["data_root"])
+# DATA ROOT DIRECTORY
+DATA_ROOT = Path("C:/Data/EchopopData/file_all_years_update_20260303/1995")
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # REPORTS SAVE DIRECTORY
-if EXTRAP_FLAG==True:
-    Exname="KwE"
-else:
-    Exname="KnE"
-REPORTS_DIR = Path(config_output["reports_out_base"]+runyearstr+"/EchoPop/"+STRATA_TYPE+"/"+Exname+"/" )
-ECHOPOP_ROOT = lambda year: Path(config_output["reports_out_base"]+f"/{year}/EchoPop/"+STRATA_TYPE+"/"+Exname+"/")
-
-#COMPARISONS_DIR = Path(DATA_ROOT / "comparisons" /runyearstr/ "EchoPop" /STRATA_TYPE/ Exname)  
-#COMPARISONS_DIR=config_output["comparison_output_path"]
-COMPARISONS_DIR = Path(config_output["comparison_output_path"]  +"/"+runyearstr+"/"+ "EchoPop" +"/"+STRATA_TYPE+"/" +Exname+"/") 
+REPORTS_DIR = DATA_ROOT / "output_echopop"
 # COMPARE TO ECHOPRO REPORTS?
-#for now, since not using CLI, set manuall
-
 try:
     # ---- FOR CLI USE
     COMPARE = cli_utils.get_compare()
-    ECHOPRO_REPORTS_DIR = Path("C:/rthomas/Projects/EchoPop_validation/Reports") /runyearstr/ "EchoPro_2022" / STRATA_TYPE / Exname
-    ECHOPRO_ROOT = lambda year: Path(f"C:/rthomas/Projects/EchoPop_validation/Reports/{year}/EchoPro_2022/"+STRATA_TYPE+"/"+Exname+"/")
-    #ECHOPRO_ROOT = lambda year: Path(f"C:/Data/EchopopData/reports/{year}/echopro")
-    #COMPARISONS_DIR = DATA_ROOT / "comparisons"
-    #COMPARISONS_DIR = Path(config_output["comparison_output_path"]  +"/"+runyearstr+"/"+ "EchoPop" +"/"+STRATA_TYPE+"/" +Exname+"/") 
-
-    #Set save filepath for figure
-    #SAVE_FILEPATH = Path(
-    #    DATA_ROOT / "comparisons"/  f"cross_year_comparisons_{date.today().strftime("%Y%m%d")}.png"
-    #)
-
-
+    ECHOPRO_REPORTS_DIR = DATA_ROOT / "output_echopro"
+    COMPARISONS_DIR = DATA_ROOT / "comparisons"
     SHOW_PLOT = False
 except Exception:
     # ---- FOR INTERACTIVE REPL USE
     COMPARE = False
-
-COMPARE=True
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# NASC EXPORTS FILE(S)
+NASC_EXPORTS_FILES = DATA_ROOT / "input/Exports/US&CAN_detailsa_1995_table2y+_ALL_final.xlsx"
+# NASC EXPORTS SHEET
+NASC_EXPORTS_SHEET = "Sheet1"
 # REMOVE AGE-1 (I.E., AGE-2+ ONLY)?
 REMOVE_AGE1 = True
-
-# ---------------------------
-# Stage 1: Biodata ingestion
-# ---------------------------
-
-BIODATA_FILE = Path(DATA_ROOT / "biological/updated"  / config_ingest["biodata_file"])
-
-logging.info(
-    f"Beginning biodata ingestion for: '{BIODATA_FILE.as_posix()}'."
-)
-
-# Biodata file sheetnames
-BIODATA_SHEETS = config_ingest["biodata_sheets"]
-# Biodata ingestion parameters
-RENAME_BIODATA_COLUMNS = config_ingest["rename_biodata_columns"]
-
-# Haul UID reference dictionary
-HAUL_UID_CONFIG = {
-    "ship_id": {
-        "US": config_ingest["biodata_subset"]["ship_us"], 
-        "CAN": config_ingest["biodata_subset"]["ship_can"]
-    },
-    "survey_id": {
-        "US": config_ingest["biodata_subset"]["survey_us"], 
-        "CAN": config_ingest["biodata_subset"]["survey_can"]
-    },
-    "species_id": config_ingest["biodata_subset"]["species_id"],
-    "haul_offset": config_ingest["biodata_subset"]["can_haul_offset"]
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# TRANSECT BOUNDARY FILE
+TRANSECT_BOUNDARY_FILE = DATA_ROOT / "input/Kriging_files/Kriging_grid_files/Transect Bounds to 2011.xlsx"
+# TRANSECT BOUNDARY SHEET
+TRANSECT_BOUNDARY_SHEET = "1995-2011"
+# SURVEY FILTER
+SURVEY_FILTER = "survey == 199510"
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# BIODATA FILE
+BIODATA_FILE = DATA_ROOT / "input/Biological/1995-2025_Survey_Biodata.xlsx"
+# BIODATA SHEETS
+# ---- Assign the sheetnames to 'catch', 'length', 'specimen'
+BIODATA_SHEETS = {
+    "catch": "biodata_catch",
+    "length": "biodata_length",
+    "specimen": "biodata_specimen",
 }
+# BIODATA PROCESSING
+# ---- This is used to parse the biodata master spreadsheet, which is required for aligning the 
+# ---- biodata with ancillary files such as stratification and transect-haul mappings. This should 
+# ---- define the "ships" based on their IDs with the associated survey IDs. If an offset should be 
+# ---- added to the haul numbers, that must also be defined here. The target species should also be 
+# ---- defined here. 
+SPECIES_ID = 22500 # numeric species code for Pacific hake
+SHIP_US = 21 # US ship ID
+SURVEY_US = 199510 # US survey identifier
 
-
-# Different biodata processing parameters required for parsing the Excel-formatted dataset
 BIODATA_SHIP_SPECIES = {
     "ships": {
-        config_ingest["biodata_subset"]["ship_us"]: {
+        SHIP_US: {
             "country": "US",
-            "survey": config_ingest["biodata_subset"]["survey_us"] 
+            "survey": SURVEY_US 
         },
-        config_ingest["biodata_subset"]["ship_can"]: {
-            "country": "CAN",
-            "survey": config_ingest["biodata_subset"]["survey_can"],
-            "haul_offset": config_ingest["biodata_subset"]["can_haul_offset"]
-        }
+        # IN ECHOPRO: ONLY US DATA WAS USED FOR THIS YEAR
     },
-    "species_code": [config_ingest["biodata_subset"]["species_id"]]
+    "species_code": [SPECIES_ID]
 }
-# Biodata ingestion parameters
-RENAME_BIODATA_COLUMNS = config_ingest["rename_biodata_columns"]
-CAN_HAUL_OFFSET = config_ingest["biodata_subset"]["can_haul_offset"]
-
-# Biodata sex label mapping
-BIODATA_SEX = {
-    "sex": {
-        1: "male",
-        2: "female",
-        3: "unsexed"
-    }
-}
-# Ingest biodata based on configured typing
-#load biodata function looks for a uid column
-if config_ingest["biodata_format"] == "excel":
-    dict_df_bio = ingestion.load_biological_data(
-        biodata_filepath=BIODATA_FILE, 
-        biodata_sheet_map=BIODATA_SHEETS, 
-        column_name_map=RENAME_BIODATA_COLUMNS, 
-        survey_subset=BIODATA_SHIP_SPECIES, 
-        biodata_label_map=BIODATA_SEX,
-        haul_uid_config=HAUL_UID_CONFIG,
-    )
-    # Remove specimen-only hauls only when configured
-    # ---- ! This is ONLY compatible for when the Excel file format is ingested
-#    if config_ingest["drop_specimen_hauls"]:  #probably can be removed
-#        biology.drop_specimen_only_hauls(dict_df_bio)
-elif config_ingest["biodata_format"] == "views":
-    dict_df_bio = ingestion.load_biodata_views(
-        biodata_filepaths=BIODATA_FILE,
-        column_name_map=RENAME_BIODATA_COLUMNS,
-        survey_subset=BIODATA_SHIP_SPECIES, 
-        biodata_label_map=BIODATA_SEX,
-        haul_uid_config=HAUL_UID_CONFIG,
-    )
-else:
-    raise KeyError(
-        f"Configuration parameter 'biodata_format' must be either 'excel' or 'views'. "
-        f"Got: '{config_ingest['biodata_format']}'!"
-    )
-
 
 # BIODATA PROCESSING: AGE-1 DOMINATED HAULS
 # ---- This is a list of age-1 dominated haul numbers that should be designated for removal. If no
@@ -181,143 +86,50 @@ else:
 AGE1_DOMINATED_HAULS = []
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # HAUL STRATIFICATION FILE
-# ------------------------------------
-# Stage 2: Stratification + join stage
-# ------------------------------------
-# Load strata file
-logging.info(
-    "Loading stratification files..."
+HAUL_STRATA_FILE = (
+    DATA_ROOT / 
+    "input/Stratification/US&CAN strata 1995_final.xlsx"
 )
-DATA_STRATA_ROOT = Path(config_strata["data_root"]) /"Stratification" / runyearstr
-df_dict_strata = ingestion.load_strata(
-    strata_filepath=DATA_STRATA_ROOT / config_strata["strata_file"], 
-    strata_sheet_map=config_strata["strata_sheets"], 
-    column_name_map=config_strata["rename_strata_columns"],
-    haul_uid_config=HAUL_UID_CONFIG,
-)
-logging.info(
-    "Haul-based stratification loading complete\n"
-    "'df_dict_strata' created."
-)
-
-# Apply strata to biodata
-if config_strata["join_method"] == "haul":
-    dict_df_bio = ingestion.join_strata_by_haul(
-        data=dict_df_bio,
-        strata=df_dict_strata[config_strata["stratum_source"]],
-        default_stratum=config_strata["default_stratum"],
-        stratum_name=config_strata["stratum_name"]
-    )
-    #uid for consistent indexing, US&CAN hauls; retain haul and ship information
-elif config_strata["join_method"] == "uid":
-    dict_df_bio = ingestion.join_strata_by_uid(
-        data=dict_df_bio,
-        strata=df_dict_strata[config_strata["stratum_source"]],
-        default_stratum=config_strata["default_stratum"],
-        stratum_name=config_strata["stratum_name"]
-    )
-else:
-    raise KeyError(
-        f"Configuration parameter 'join_method' must be either 'haul' or 'uid'. "
-        f"Got: '{config_strata['biodata_format']}'!"
-    )    
-
-# READ IN GEOSTRATA FILE
+# HAUL STRATIFICATION SHEET MAP
+# ---- Valid keys are limited to "ks" and "inpfc"
+HAUL_STRATA_SHEETS = {
+    "inpfc": "INPFC",
+    "ks": "Base KS",
+}
 # GEOGRAPHIC STRATIFICATION FILE
-GEOSTRATA_FILE=Path(DATA_STRATA_ROOT) / config_strata["geo_strata_file"]
-logging.info(
-    f"Load in geographic-based stratification: '{GEOSTRATA_FILE.as_posix()}'."
+GEOSTRATA_FILE = (
+    DATA_ROOT / 
+    "input/Stratification/Stratification_geographic_Lat_1995.xlsx"
 )
-
-df_dict_geostrata = ingestion.load_geostrata(
-    geostrata_filepath=DATA_STRATA_ROOT / config_strata["geo_strata_file"], 
-    geostrata_sheet_map=config_strata["geo_strata_sheets"], 
-    column_name_map=config_strata["rename_geo_strata_columns"],
-)
-
-logging.info(
-    "Geographic-based stratification loading complete\n"
-    "'df_dict_geostrata' created."
-)
-
-### SET DEFAULT STRATA based on STRATA_TYPE
-if STRATA_TYPE=="inpfc":
-    STRATUM_USE="stratum_inpfc"
-    GEOSTRATUM_USE="geostratum_inpfc"
-else:
-    STRATUM_USE="stratum_ks"
-    GEOSTRATUM_USE="geostratum_ks"
-
+# GEOGRAPHIC STRATIFICATION SHEET MAP
+# ---- Valid keys are limited to "ks" and "inpfc"
+GEOSTRATA_SHEETS = {
+    "inpfc": "INPFC",
+    "ks": "stratification1",
+}
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # KRIGING MESH FILE 
 KRIGING_MESH_FILE = (
-    Path(DATA_ROOT) / "Kriging files & parameters/Kriging Grid Files" / config_kriging["mesh_file"]
+    DATA_ROOT / "input/Kriging_files/Kriging_grid_files/krig_grid2_5nm_cut_centroids_2013.xlsx"
 )
-KRIGING_MESH_SHEET = config_kriging["mesh_sheet"]
-
-############################### CHANGES FOR NON-EXTRAPOLATION ######################################
-# KRIGING MESH PROCESSING: CROP METHOD
-# ---- This should be a Callable function. When cropping, this typically defaults to using a convex
-# ---- hull method. However, custom functions can be called, such as cropping based on the
-# ---- interpolated boundaries of the survey region. These custom functions can be found in the
-# ---- `FEAT.fun` module.
-# KRIGING MESH PROCESSING: CROPPING FUNCTION PARAMETERS
-# ---- For the FEAT-specific `transect_ends_crop` function, a transect-region mapping function
-# ---- must be provided. These can be year-specific and can be found in the `FEAT.parameters`
-# ---- module. This transect mesh region mapping function tracks the original transect region
-# ---- definition files used in the MATLAB EchoPro distribution.
-if EXTRAP_FLAG==False:
-    CROP_METHOD = feat.transect_ends_crop
-#TRANSECT_MESH_REGION_MAP = feat_parameters.transect_mesh_region_2019
-    TRANSECT_MESH_REGION_MAP_STRING = ("transect_mesh_region_"+runyearstr)
-    TRANSECT_MESH_REGION_MAP = getattr(feat_parameters, TRANSECT_MESH_REGION_MAP_STRING)
-####################################################################################################
-
+# KRIGING MESH SHEET
+KRIGING_MESH_SHEET = "krigedgrid2_5nm_forChu"
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # KRIGING AND VARIOGRAM PARAMETERS FILE
-# KRIGING_VARIOGRAM_PARAMETERS_FILE = (
 KRIGING_VARIOGRAM_PARAMETERS_FILE = (
-    DATA_ROOT / "Kriging Files & parameters" / runyearstr / config_kriging["variogram_parameters_file"]
+    DATA_ROOT / "input/Kriging_files/default_vario_krig_settings_final.xlsx"
 )
 # KRIGING AND VARIOGRAM PARAMETERS SHEET
-KRIGING_VARIOGRAM_PARAMETERS_SHEET = config_kriging["variogram_parameters_sheet"] 
+KRIGING_VARIGORAM_PARAMETERS_SHEET = "Sheet1"
 # USE DEFAULT VALUES OR OPTIMIZE?
 OPTIMIZE_VARIOGRAM = False
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# # 200m ISOBATH FILE
-
+# 200m ISOBATH FILE
 ISOBATH_FILE = (
-    DATA_ROOT / "Kriging files & parameters/Kriging Grid Files" / config_kriging["isobath_file"]
+    DATA_ROOT / "input/Kriging_files/Kriging_grid_files/transformation_isobath_coordinates.xlsx"
 )
 # 200m ISOBATH SHEET
-ISOBATH_SHEET = config_kriging["isobath_sheet"]
-
-
-#-----------------------
-# Stage 3 : ingest NASC
-#-----------------------
-
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# ALREADY PROCESSED NASC FILE ? 
-# ---- When False, the raw NASC exports will be processed. When True, the pre-formatted NASC 
-# ---- spreadsheet will be read in. This also requires defining `NASC_EXPORTS_SHEET`
-NASC_PREPROCESSED = False
-# NASC EXPORTS FILE(S)
-NASC_EXPORTS_FILES = Path(DATA_ROOT) / "Exports/EchoPro_Exports" / config_nasc["formatted_exports_file"]
-NASC_EXPORTS_SHEET = config_nasc["formatted_exports_sheet"] #e.g. "Sheet1"
-NASC_EXPORTS_PATH =Path(DATA_ROOT) / "Exports"/ runyearstr  # pathfor Echoview exports
-
-
-ECHOPOP_PATTERNS = {
-    "transect": r"^EchoPro_un-kriged_output(?:-.*)?_0\.xlsx$",
-    "kriging":  r"^EchoPro_kriged_output(?:-.*)?_0\.xlsx$",
-}
-
-ECHOPRO_PATTERNS = {
-    "transect": r"^EchoPro_un-kriged_output(?:-.*)?_0\.xlsx$",
-    "kriging":  r"^EchoPro_kriged_output(?:-.*)?_0\.xlsx$",
-}
-
+ISOBATH_SHEET = "Smoothing_EasyKrig"
 ####################################################################################################
 ####################################################################################################
 # !!! START OF PROCESSING SCRIPT !!
@@ -328,8 +140,11 @@ import logging
 import numpy as np
 import xarray as xr
 from lmfit import Parameters
+from echopop.utils import feat_functions as feat
 from echopop.reports import Reporter, compare
+import echopop.ingest as ingestion
 from echopop import geostatistics, inversion, utils
+from echopop.survey import apportionment, biology, proportions, stratified, transect
 ####################################################################################################
 # FORMAT LOGGER
 for handler in logging.root.handlers[:]:
@@ -341,162 +156,171 @@ logging.basicConfig(
 # ==================================================================================================
 # DATA INGESTION 
 # ==================================================================================================
+# FORMAT HAUL-BASED UID 
+logging.info(f"Creating haul-based UID...")
+HAUL_UID_CONFIG = {
+    "ship_id": {"US": SHIP_US},
+    "survey_id": {"US": SURVEY_US},
+    "species_id": SPECIES_ID,
+    "single_country": True,
+}
 
 # INGEST NASC DATA 
-if NASC_PREPROCESSED:
-    logging.info(f"Reading pre-generated NASC export file: '{NASC_EXPORTS_FILES.as_posix()}'.")
+logging.info(f"Reading pre-generated NASC export file: '{NASC_EXPORTS_FILES.as_posix()}'.")
 
-    # DEFINE COLUMN MAPPING
-    FEAT_TO_ECHOPOP_COLUMNS = {
-        "transect": "transect_num",
-        "region id": "region_id",
-        "vl start": "distance_s",
-        "vl end": "distance_e",
-        "spacing": "transect_spacing",
-        "layer mean depth": "layer_mean_depth",
-        "layer height": "layer_height",
-        "bottom depth": "bottom_depth",
-        "assigned haul": "haul_num",
-    }
+# DEFINE COLUMN MAPPING
+FEAT_TO_ECHOPOP_COLUMNS = {
+    "transect": "transect_num",
+    "log": "distance",
+    "lat": "latitude",
+    "long": "longitude",
+    "strata": "stratum_ks",
+    "width": "transect_spacing",
+    "mean layer depth": "layer_depth_mean",
+    "depth": "bottom_depth",
+    "hake": "nasc",
+}
 
-    # Read file
-    df_nasc = ingestion.nasc.read_nasc_file(
-        filename=NASC_EXPORTS_FILES,
-        sheetname=NASC_EXPORTS_SHEET,
-        column_name_map=FEAT_TO_ECHOPOP_COLUMNS,
-        haul_uid_config=HAUL_UID_CONFIG,
-    )
-else:
-    logging.info(
-        f"Beginning NASC export ingestion for files in: '{NASC_EXPORTS_FILES.as_posix()}'."
-    )
-
-    # MERGE EXPORTS
-    logging.info(
-        "---- Merging NASC exports...\n"
-        "     Filename transect pattern: 'T(\\d+)'\n"
-        "     Default transect spacing: 10.0 nmi\n"
-        "     Default latitude threshold: 60.0 deg."
-    )    
-    df_intervals, df_exports = ingestion.nasc.merge_echoview_nasc(
-        file_directory = NASC_EXPORTS_PATH,
-        filename_transect_pattern = r"T(\d+)",
-        default_transect_spacing = 10.0,
-        default_latitude_threshold = 60.0,
-    )
-
-    # EXPORT REGION NAME MAPPING
-    REGION_NAME_EXPR_DICT = {
-        "REGION_CLASS": {
-            "Age-0 Hake": "^(?:h0a(?![a-z]|m))",
-            "Age-1 Hake": "^(?:h1a(?![a-z]|m))",
-            "Age-1 Hake Mix": "^(?:h1am(?![a-z]|1a))",
-            "Hake": "^(?:h(?![a-z]|1a)|hake(?![_]))",
-            "Hake Mix": "^(?:hm(?![a-z]|1a)|hake_mix(?![_]))",
-        },
-        "HAUL_NUM": {
-            "[0-9]+",
-        },
-        "COUNTRY": {
-            "CAN": "^[cC]",
-            "US": "^[uU]",
-        },
-    }    
-    
-    # PROCESS REGION NAMES 
-    logging.info(
-        f"---- Processing export region names\n"
-        f"     Applying CAN haul number offset: {CAN_HAUL_OFFSET}"
-    )
-    
-
-    ## >>>> Filter out any class "unknown" from df_exports (RT added)
-    # In 2015 on x49 there was a region that was named as a hake mix region, but later changed to unknown.  
-    # Regions in EchoPop are filtered by region name, not by class
-    rows = df_exports[df_exports["region_class"] == "unknown"].index
-    df_exports.drop(rows, inplace=True)
-
-    ## >>>>> If age-2+ estimate, filter out age-1 regions (RT added)
-    # If just doing age-2+ estimates, add in a filter to remove age-1 class regions.  In 2015,
-    # an age-1 class region with significant backscatter was not named correctly, and was misinterpreted as an adult reigon.
-    if REMOVE_AGE1:
-        rows1 = df_exports[df_exports["region_class"] == "age-1 hake"].index
-        df_exports.drop(rows1, inplace=True)
-
-    # >>>> Maybe insert `utils.add_uid` (or equivalent function)
-    df_exports_with_regions = ingestion.nasc.process_region_names(
-        nasc_cells=df_exports,
-        region_name_expr=REGION_NAME_EXPR_DICT,
-        can_haul_offset=CAN_HAUL_OFFSET,
-    )
-    
-    # GENERATE TRANSECT-REGION-HAUL KEY
-    if REMOVE_AGE1:
-        CLASS_REGIONS = ["Hake", "Hake Mix"]
-    else:
-        CLASS_REGIONS = ["Age-1 Hake", "Age-1 Hake Mix", "Hake", "Hake Mix"]
-    logging.info(
-        f"---- Generating transect-region-haul key mapping\n"
-        f"     Searching for the export regions: {', '.join(CLASS_REGIONS)}"
-    )
-    df_transect_region_haul_key = ingestion.nasc.generate_transect_region_haul_key(
-        region_data=df_exports_with_regions,
-        filter_list=CLASS_REGIONS
-    )
-    
-    # AGE-1 DOMINATED HAUL REMOVAL
-    if REMOVE_AGE1:
-        logging.info(
-            f"The following age-1 dominated haul numbers have been designated for removal from "
-            f"transect-region-haul key mapping:\n"
-            f"{', '.join(map(str, AGE1_DOMINATED_HAULS))}."
-        )
-        df_transect_region_haul_key = utils.apply_filters(
-            df_transect_region_haul_key, exclude_filter={"haul_num": AGE1_DOMINATED_HAULS}
-        )
-
-    # CONSOLIDATE THE EXPORTS WITH TRANSECT-REGION-HAUL MAPPINGS
-    logging.info(
-        "---- Finalizing NASC export ingestion\n"
-        "     Searching for the export regions: 'Age-1 Hake', 'Age-1 Hake Mix', 'Hake', 'Hake Mix'"
-        "     Imputing overlapping region IDs within each interval: True"
-    )
-    
-    df_nasc = ingestion.nasc.consolidate_echvoiew_nasc(
-        nasc_data=df_exports_with_regions,
-        interval_data=df_intervals,
-        region_class_names=CLASS_REGIONS,
-        impute_region_ids=True,
-        transect_region_haul_key=df_transect_region_haul_key,
-        haul_uid_config=HAUL_UID_CONFIG
-    )
-    
-    # >>>
-logging.info(
-    "NASC ingestion complete\n"
-    "'df_nasc' created."
+# READ FILE
+df_nasc = ingestion.nasc.read_afsc_nasc_file(
+    filename=NASC_EXPORTS_FILES,
+    sheetname=NASC_EXPORTS_SHEET,
+    column_name_map=FEAT_TO_ECHOPOP_COLUMNS,
 )
 
-# DROP TRANSECTS
-df_nasc = utils.apply_filters(df_nasc, include_filter={"transect_num": np.arange(1, 2000)})
-# # ==================================================================================================
+# CONVERT AFSC TO FEAT FORMAT
+logging.info(
+    "---- Converting AFSC NASC export format to FEAT\n"
+    "     Default interval distance: 0.5 nmi\n"
+    "     Default transect spacing: 10.0 nmi\n"
+    "     Including transects: 1 to 400"
+)
+df_nasc = feat.convert_afsc_nasc_to_feat(
+    nasc_data=df_nasc,
+    default_interval_distance=0.5,
+    default_transect_spacing=10.0,
+)
 
-# AGE-1 DOMINATED HAUL REMOVAL
-if len(AGE1_DOMINATED_HAULS) > 0:
-    logging.info(
-        f"The following age-1 dominated haul numbers have been designated for removal from "
-        f"biodata:\n"
-        f"{', '.join(map(str, AGE1_DOMINATED_HAULS))}."
-    )
-    dict_df_bio = {
-        key: utils.apply_filters(dataset, exclude_filter={"haul_num": AGE1_DOMINATED_HAULS})
-        for key, dataset in dict_df_bio.items()
+# FILTER
+logging.info(
+    f"---- Filtering out off-effort transect intervals based on: {TRANSECT_BOUNDARY_FILE}\n"
+    f"     Survey filter: '{SURVEY_FILTER}'"
+)
+df_nasc = feat.filter_transect_intervals(
+    nasc_data=df_nasc, 
+    transect_filter=TRANSECT_BOUNDARY_FILE,
+    transect_filter_sheet=TRANSECT_BOUNDARY_SHEET,
+    survey_filter=SURVEY_FILTER
+)
+logging.info(
+    f"!!! [1995] WARNING:\n"
+    f"{sum(np.isnan(df_nasc["distance_s"]))} rows had missing vessel log distances.\nThese are "
+    f"incompatible with the workflow and will therefore be replaced accordingly."
+)
+
+df_nasc.fillna({"distance_s": 0.0, "distance_e": 0.5}, inplace=True)
+
+logging.info(
+    "!!! [1995] WARNING:\n"
+    "Longitude values in 'df_nasc' are in deg.W. However, they must be in deg.E. These have been "
+    "converted accordingly."
+)
+if any(df_nasc["longitude"] > 0):
+    df_nasc["longitude"] = -np.abs(df_nasc["longitude"])
+    
+logging.info(
+    "!!! [1995] WARNING:\n"
+    "Columns 'region_id', 'layer_height', and 'layer_mean_depth' missing. "
+    "Stand-in values have been added."
+)
+df_nasc["region_id"] = 999
+df_nasc["layer_height"] = 0.
+df_nasc["layer_mean_depth"] = 0.
+# ==================================================================================================
+# INGEST BIODATA
+logging.info(
+    f"Beginning biodata ingestion for: '{BIODATA_FILE.as_posix()}'."
+)
+
+# BIODATA DATAFRAME COLUMN NAME MAPPING
+FEAT_TO_ECHOPOP_BIODATA_COLUMNS = {
+    "frequency": "length_count",
+    "haul": "haul_num",
+    "weight_in_haul": "weight",
+}
+
+# BIODATA LABEL MAPPING
+BIODATA_SEX = {
+    "sex": {
+        1: "male",
+        2: "female",
+        3: "unsexed"
     }
-    logging.info(
-        f"The following age-1 dominated haul numbers were successfully removed from the biodata:\n"
-        f"{', '.join(map(str, AGE1_DOMINATED_HAULS))}."
-    )
+}
 
+logging.info(
+    "!!! [1995] WARNING:\n"
+    "Reading in only US biological data (ship ID: '21', survey: '199510'.)"
+)
+
+# READ IN DATA
+dict_df_bio = ingestion.load_biological_data(
+    biodata_filepath=BIODATA_FILE, 
+    biodata_sheet_map=BIODATA_SHEETS, 
+    column_name_map=FEAT_TO_ECHOPOP_BIODATA_COLUMNS, 
+    survey_subset=BIODATA_SHIP_SPECIES, 
+    biodata_label_map=BIODATA_SEX,
+    haul_uid_config=HAUL_UID_CONFIG,
+)
+# ==================================================================================================
+# INGEST STRATIFICATION DATA
+logging.info(
+    "Loading stratification files..."
+)
+
+# HAUL-BASED STRATIFICATION DATAFRAME COLUMN NAME MAPPING
+FEAT_TO_ECHOPOP_STRATA_COLUMNS = {
+    "wt": "nasc_proportion",
+    "haul": "haul_num",
+    "strata": "stratum_num"
+}
+
+# READ IN STRATA FILE 
+logging.info(
+    f"Load in haul-based stratification: '{HAUL_STRATA_FILE.as_posix()}'."
+)
+df_dict_strata = ingestion.load_strata(
+    strata_filepath=HAUL_STRATA_FILE, 
+    strata_sheet_map=HAUL_STRATA_SHEETS, 
+    column_name_map=FEAT_TO_ECHOPOP_STRATA_COLUMNS,
+    haul_uid_config=HAUL_UID_CONFIG,
+)
+logging.info(
+    "Dropping column 'length' from the haul-based stratification datasets."
+)
+df_dict_strata["inpfc"].drop(columns=["length"], inplace=True)
+df_dict_strata["ks"].drop(columns=["length"], inplace=True)
+logging.info(
+    "Haul-based stratification loading complete\n"
+    "'df_dict_strata' created."
+)
+
+# GEOGRAPHIC-BASED STRATIFICATION DATAFRAME COLUMN NAME MAPPING
+FEAT_TO_ECHOPOP_GEOSTRATA_COLUMNS = {
+    "latitude (upper limit)": "northlimit_latitude",
+    "strata": "stratum_num",
+    "strata index": "stratum_num",
+}
+
+# READ IN GEOSTRATA FILE
+logging.info(
+    f"Load in geographic-based stratification: '{GEOSTRATA_FILE.as_posix()}'."
+)
+df_dict_geostrata = ingestion.load_geostrata(
+    geostrata_filepath=GEOSTRATA_FILE, 
+    geostrata_sheet_map=GEOSTRATA_SHEETS, 
+    column_name_map=FEAT_TO_ECHOPOP_GEOSTRATA_COLUMNS
+)
 # ==================================================================================================
 # LOAD KRIGING MESH FILE
 logging.info(
@@ -505,8 +329,8 @@ logging.info(
 
 # KRIGING MESH DATAFRAME COLUMN NAME MAPPING
 FEAT_TO_ECHOPOP_MESH_COLUMNS = {
-    "latitude": "latitude",
-    "longitude": "longitude",
+    "latitude of centroid": "latitude",
+    "longitude of centroid": "longitude",
     "cell portion": "fraction",
 }
 
@@ -516,10 +340,6 @@ df_mesh = ingestion.load_mesh_data(
     sheet_name=KRIGING_MESH_SHEET, 
     column_name_map=FEAT_TO_ECHOPOP_MESH_COLUMNS
 )
-logging.info(
-    "Kriging mesh loading complete\n"
-    "'df_mesh' created."
-)
 # ==================================================================================================
 # LOAD ISOBATH FILE
 logging.info(
@@ -528,10 +348,6 @@ logging.info(
 df_isobath = ingestion.load_isobath_data(
     isobath_filepath=ISOBATH_FILE,
     sheet_name=ISOBATH_SHEET
-)
-logging.info(
-    f"Iosbath loading complete\n"
-    "'df_isobath' created."
 )
 # ==================================================================================================
 # LOAD KRIGING AND VARIOGRAM PARAMETERS
@@ -553,13 +369,8 @@ FEAT_TO_ECHOPOP_GEOSTATS_PARAMS_COLUMNS = {
 # LOAD IN PARAMETERS
 dict_kriging_params, dict_variogram_params = ingestion.load_kriging_variogram_params(
     geostatistic_params_filepath=KRIGING_VARIOGRAM_PARAMETERS_FILE,
-    sheet_name=KRIGING_VARIOGRAM_PARAMETERS_SHEET,
+    sheet_name=KRIGING_VARIGORAM_PARAMETERS_SHEET,
     column_name_map=FEAT_TO_ECHOPOP_GEOSTATS_PARAMS_COLUMNS
-)
-logging.info(
-    "Variogram and kriging parameter loading complete\n"
-    "---- 'dict_variogram_params' created [variogram]\n"
-    "---- 'dict_kriging_params' created [kriging]"
 )
 # ==================================================================================================
 # INITIAL DATA PROCESSING
@@ -569,32 +380,25 @@ logging.info("Applying strata to datasets...")
 
 # HAUL-BASED STRATA
 logging.info(
-    "Applying haul-based strata to 'dict_df_bio' and 'df_nasc'.\n"
-    "     Using column 'uid' as haul-based unique identifier\n"
+    "Applying haul-based strata to 'dict_df_bio'.\n"
     "     Default stratum: 0\n"
     "     New columns:\n"
     "         INPFC: 'stratum_inpfc'\n"
     "         KS: 'stratum_ks'"
 )
 # ---- BIODATA [INPFC]
-dict_df_bio = ingestion.join_strata_by_uid(
+dict_df_bio = ingestion.join_strata_by_haul(
     data=dict_df_bio,
     strata=df_dict_strata["inpfc"],
     default_stratum=0,
     stratum_name="stratum_inpfc",
 )
 # ---- BIODATA [KS]
-dict_df_bio = ingestion.join_strata_by_uid(
+dict_df_bio = ingestion.join_strata_by_haul(
     data=dict_df_bio, strata=df_dict_strata["ks"], default_stratum=0, stratum_name="stratum_ks"
 )
-# ---- NASC [INPFC]
-df_nasc = ingestion.join_strata_by_uid(
-    data=df_nasc, strata=df_dict_strata["inpfc"], default_stratum=0, stratum_name="stratum_inpfc"
-)
-# ---- NASC [KS]
-df_nasc = ingestion.join_strata_by_uid(
-    data=df_nasc, strata=df_dict_strata["ks"], default_stratum=0, stratum_name="stratum_ks"
-)
+# ---- NAS [INPFC]
+df_nasc["nasc_proportion"] = 1.0
 
 # GEOGRAPHIC-BASED STRATA
 logging.info(
@@ -629,31 +433,27 @@ df_mesh = ingestion.join_geostrata_by_latitude(
 )
 logging.info("Strata application complete!")
 # ==================================================================================================
-# # BINIFY DATA 
-# ---------------------------
-# Stage 3: Analysis bin setup
-# ---------------------------
-# Binify data
-# --- Age-bins
-AGE_BINS = np.linspace(
-    start=config_analysis["age"]["start"], 
-    stop=config_analysis["age"]["end"], 
-    num=config_analysis["age"]["count"]
+# BINIFY DATA 
+logging.info(
+    "Binning biodata ['dict_df_bio'] into discrete age and length bins\n"
+    "     Age bins: [1, 2, 3, ..., 20, 21, 22]\n"
+    "     Length bins: [2.0, 4.0, 6.0, ... 76.0, 78.0, 80.0]\n"
+    "     New columns:\n"
+    "         Age: 'age_bin'\n"
+    "         Length: 'length_bin'"
 )
+
+# AGE-BINS
+AGE_BINS = np.linspace(start=1., stop=22, num=22)
 utils.binify(
-    data=dict_df_bio, bins=AGE_BINS, bin_column=config_analysis["age"]["column"],
+    data=dict_df_bio, bins=AGE_BINS, bin_column="age",
 )
 
 # LENGTH-BINS
-LENGTH_BINS = np.linspace(
-    start=config_analysis["length"]["start"], 
-    stop=config_analysis["length"]["end"], 
-    num=config_analysis["length"]["count"]
-)
+LENGTH_BINS = np.linspace(start=2., stop=80., num=40)
 utils.binify(
-    data=dict_df_bio, bins=LENGTH_BINS, bin_column=config_analysis["length"]["column"], 
+    data=dict_df_bio, bins=LENGTH_BINS, bin_column="length", 
 )
-
 logging.info("Age and length binning complete!")
 # ==================================================================================================
 # FIT LENGTH-WEIGHT REGRESSION
@@ -705,13 +505,11 @@ da_binned_weight_table = xr.concat(
     [da_binned_weights_sex, da_binned_weights_all],
     dim = "sex"
 )
-# I think below uses specific stratum now (RT)
 # ==================================================================================================
 # COMPUTE COUNT DISTRIBUTIONS PER AGE- AND LENGTH-BINS
-
 logging.info(
     "Computing the counts per age- and length-bins across sex.\n"
-    "     Stratifying by: " + STRATUM_USE+
+    "     Stratifying by: 'stratum_ks'"
     "     Grouping by: 'sex'"
     )
 
@@ -720,8 +518,8 @@ ds_counts = xr.Dataset()
 
 # AGED
 ds_counts["aged"] = proportions.compute_binned_counts(
-    data=dict_df_bio["specimen"].dropna(subset=["age", "length", "weight"]),
-    groupby_cols=[STRATUM_USE, "length_bin", "age_bin", "sex"],
+    data=dict_df_bio["specimen"].dropna(subset=["length"]),
+    groupby_cols=["stratum_ks", "length_bin", "age_bin", "sex"],
     count_col="length",
     agg_func="size",
 )
@@ -729,7 +527,7 @@ ds_counts["aged"] = proportions.compute_binned_counts(
 # UNAGED
 ds_counts["unaged"] = proportions.compute_binned_counts(
     data=dict_df_bio["length"].copy().dropna(subset=["length"]),
-    groupby_cols=[STRATUM_USE, "length_bin", "sex"],
+    groupby_cols=["stratum_ks", "length_bin", "sex"],
     count_col="length_count",
     agg_func="sum",
 )
@@ -737,23 +535,19 @@ ds_counts["unaged"] = proportions.compute_binned_counts(
 # COMPUTE NUMBER PROPORTIONS
 logging.info(
     "Computing number proportions across age and length bins\n"
-    "     Stratifying by: " + STRATUM_USE+ "\n"
+    "     Stratifying by: 'stratum_ks'\n"
     "     Excluding: 'sex'='unsexed' from 'dict_df_counts['aged']'"
     )
 dict_ds_number_proportion = proportions.number_proportions(
     data=ds_counts,
-    stratum_dim=STRATUM_USE,
+    stratum_dim="stratum_ks",
     exclude_filters={"aged": {"sex": "unsexed"}},
 )
-logging.info(
-    "Number proportions calculation complete\n"
-    "'dict_df_number_proportions' created\n"
-    )
 # ==================================================================================================
 # COMPUTE BINNED WEIGHTS
 logging.info(
     "Computing the summed weights per age- and length-bins across sex.\n"
-    "     Stratifying by: " + STRATUM_USE+
+    "     Stratifying by: 'stratum_ks'"
     "     Grouping by: 'sex'"
     "     Excluding: 'sex'='unsexed'"
     )
@@ -766,7 +560,7 @@ ds_da_weight_dist["aged"] = proportions.binned_weights(
     length_data=dict_df_bio["specimen"],
     include_filter={"sex": ["female", "male"]},
     interpolate_regression=False,
-    group_columns=[STRATUM_USE, "sex", "age_bin"],
+    group_columns=["stratum_ks", "sex", "age_bin"],
 )
 
 # UNAGED
@@ -779,17 +573,17 @@ ds_da_weight_dist["unaged"] = proportions.binned_weights(
     include_filter={"sex": ["female", "male"]},
     interpolate_regression=True,
     length_weight_data=da_binned_weight_table,
-    group_columns=[STRATUM_USE, "sex"],
+    group_columns=["stratum_ks", "sex"],
 )
 # ==================================================================================================
 # COMPUTE WEIGHT PROPORTIONS
 logging.info(
     "Computing weight proportions across age and length bins\n"
-    "     Stratifying by: " + STRATUM_USE+
+    "     Stratifying by: 'stratum_ks'"
     "     Grouping by: 'sex'"
     )
 
-# DATAARRAY CONTAINER
+# DICTIONARY CONTAINER
 dict_da_weight_proportion = {}
 
 # AGED WEIGHT PROPORTIONS
@@ -797,7 +591,7 @@ logging.info("Computing aged weight proportions...")
 dict_da_weight_proportion["aged"] = proportions.weight_proportions(
     weight_data=ds_da_weight_dist["aged"], 
     catch_data=dict_df_bio["catch"], 
-    stratum_dim = STRATUM_USE,
+    stratum_dim = "stratum_ks"
 )
 
 # UNAGED WEIGHT PROPORTIONS
@@ -810,9 +604,8 @@ dict_da_weight_proportion["unaged"] = proportions.fitted_weight_proportions(
     aged_weight_proportions=dict_da_weight_proportion["aged"],
     number_proportions=dict_ds_number_proportion["unaged"],
     binned_weights=da_binned_weights_all,
-    stratum_dim = STRATUM_USE,
+    stratum_dim="stratum_ks"
 )
-
 # ==================================================================================================
 # NASC TO BIOMASS CONVERSION
 # ==================================================================================================
@@ -820,7 +613,7 @@ dict_da_weight_proportion["unaged"] = proportions.fitted_weight_proportions(
 logging.info(
     "Beginning inversion based on hake-specific TS-length regression coefficients\n"
     "     Model: 20.0 x log[10](L) + -68.0\n"
-    "     Stratifying by: " + STRATUM_USE+"\n"
+    "     Stratifying by: 'stratum_ks'\n"
     "     Imputing missing strata: True\n"
     "     Treating hauls as replicates: True"
     )
@@ -831,12 +624,11 @@ MODEL_PARAMETERS = {
         "slope": 20.,
         "intercept": -68.
     },
-    #"stratify_by": ["stratum_ks"],
-    "stratify_by": [STRATUM_USE],
-    "expected_strata": np.sort(df_dict_strata[STRATA_TYPE].stratum_num.unique()),
+    "stratify_by": ["stratum_ks"],
+    "expected_strata": df_dict_strata["ks"].stratum_num.unique(),
     "impute_missing_strata": True,
     "haul_replicates": True,
-    "haul_column": "uid",
+    "haul_column": "haul_num",
 }
 
 # INITIALIZE INVERSION OBJECT
@@ -861,6 +653,7 @@ logging.info(
     "Defining transect interval distances...\n"
     "     Along-transect interval distance (nmi) threshold: 0.5 nmi"
 )
+
 transect.compute_interval_distance(nasc_data=df_nasc, interval_threshold=0.05)
 
 # SET TRANSECT INTERVAL AREAS
@@ -872,7 +665,7 @@ df_nasc["area_interval"] = (
 # COMPUTE ABUNDANCE
 logging.info(
     "Compute interval abundances...\n"
-    "     Stratifying by: " + STRATUM_USE+"\n"
+    "     Stratifying by: 'stratum_ks'\n"
     "     Grouping by: 'sex'\n"
     "     Excluding: 'sex'='unsexed' from 'dict_df_number_proportions'"    
 )
@@ -881,31 +674,29 @@ biology.compute_abundance(
     exclude_filter={"sex": "unsexed"},
     number_proportions=dict_ds_number_proportion,
 )
-
 # COMPUTE STRATUM-AVERAGED WEIGHTS
 da_averaged_weight = proportions.stratum_averaged_weight(
     number_proportions=dict_ds_number_proportion,
     length_weight_data=da_binned_weight_table,
-    stratum_dim=STRATUM_USE,
+    stratum_dim="stratum_ks"
 )
 
 
 # COMPUTE BIOMASS
 logging.info(
     "Compute interval biomass...\n"
-    "     Stratifying by: " + STRATUM_USE+"\n"
+    "     Stratifying by: 'stratum_ks'\n"
     "     Grouping by: 'sex'\n"  
 )
 biology.compute_biomass(
     transect_data=df_nasc,
     stratum_weights=da_averaged_weight,
 )
-
 # AGE-1 CONTRIBUTION REMOVAL
 if REMOVE_AGE1:
     logging.info(
         "Removing age-1 contributions from NASC, abundance, and biomass estimates...\n"
-    "     Stratifying by: " + STRATUM_USE+"\n"
+        "     Stratifying by: 'stratum_ks'\n"
         "     Minimum length threshold for weight proportions: 10.0 cm\n"
         "     Minimum weight proportion threshold: 1E-10"
     )
@@ -913,7 +704,7 @@ if REMOVE_AGE1:
     # NASC
     age1_nasc_proportions = proportions.get_nasc_proportions_slice(
         number_proportions=dict_ds_number_proportion["aged"],
-        stratum_dim=STRATUM_USE,
+        stratum_dim="stratum_ks",
         ts_length_regression_parameters={"slope": 20.0, "intercept": -68.0},
         include_filter={"age_bin": [1]},
     )
@@ -921,14 +712,14 @@ if REMOVE_AGE1:
     # NUMBER
     age1_number_proportions = proportions.get_number_proportions_slice(
         number_proportions=dict_ds_number_proportion["aged"],
-        stratum_dim=STRATUM_USE,
+        stratum_dim="stratum_ks",
         include_filter={"age_bin": [1]},
     )
 
     # WEIGHT
     age1_weight_proportions = proportions.get_weight_proportions_slice(
         weight_proportions=dict_da_weight_proportion["aged"],
-        stratum_dim=STRATUM_USE,
+        stratum_dim="stratum_ks",
         include_filter={"age_bin": [1]},
         number_proportions=dict_ds_number_proportion,
         length_threshold_min=10.0,
@@ -971,17 +762,16 @@ logging.info(
 # DISTRIBUTE POPULATION ESTIMATES ACROSS AGE AND LENGTH BINS
 logging.info(
     "Distribute population estimates across age- and length-bins\n"
-    "     Stratifying by: " + STRATUM_USE+"\n"
+    "     Stratifying by: 'stratum_ks'\n"
     "     Grouping by: 'sex'"
 )
 
-# ABUNDANCE
 logging.info("Distributing abundances...")
 dict_ds_transect_abundance_table = apportionment.distribute_population_estimates(
     data = df_nasc,
     proportions = dict_ds_number_proportion,
     variable = "abundance",
-    group_columns = ["sex", "age_bin", "length_bin", STRATUM_USE]
+    group_columns = ["sex", "age_bin", "length_bin", "stratum_ks"]
 )
 
 logging.info("Abundance distributions complete\n'dict_ds_transect_abundance_table' created.")
@@ -991,7 +781,7 @@ dict_ds_transect_biomass_table = apportionment.distribute_population_estimates(
     data=df_nasc,
     proportions=dict_da_weight_proportion,
     variable = "biomass",
-    group_columns = ["sex", "age_bin", "length_bin", STRATUM_USE]
+    group_columns = ["sex", "age_bin", "length_bin", "stratum_ks"]
 )
 
 dict_ds_transect_biomass_table[
@@ -999,9 +789,8 @@ dict_ds_transect_biomass_table[
 ] = apportionment.distribute_unaged_from_aged(
     population_table = dict_ds_transect_biomass_table["unaged"],
     reference_table = dict_ds_transect_biomass_table["aged"],
-    stratum_dim = STRATUM_USE,
-    impute = True,
-    impute_variable = ['age_bin'],
+    stratum_dim = "stratum_ks",
+    impute = False 
 )
 
 da_transect_biomass_table = apportionment.sum_population_tables(
@@ -1018,7 +807,7 @@ df_transect_aged_biomass_table = apportionment.distribute_population_estimates(
     data=df_nasc_proc,
     proportions=dict_da_weight_proportion["aged"],
     variable="biomass",
-    group_columns = ["sex", "age_bin", "length_bin", STRATUM_USE]
+    group_columns = ["sex", "age_bin", "length_bin", "stratum_ks"]
 )
 # ==================================================================================================
 # GEOSTATISTICS
@@ -1041,7 +830,6 @@ df_nasc_proc, delta_longitude, delta_latitude = geostatistics.transform_coordina
     x_offset = -124.78338,
     y_offset = 45.,   
 )
-
 
 # MESH
 df_mesh, _, _ = geostatistics.transform_coordinates(
@@ -1162,11 +950,6 @@ KRIGING_PARAMETERS = {
 # VARIOGRAM PARAMETERS CONTAINER
 VARIOGRAM_PARAMETERS = {
     "model": ["exponential", "bessel"],
-    "sill": dict_variogram_params["sill"],
-    "nugget": dict_variogram_params["nugget"],
-    "correlation_range": dict_variogram_params["correlation_range"],
-    "hole_effect_range": dict_variogram_params["hole_effect_range"],
-    "decay_power": dict_variogram_params["decay_power"],
     **best_fit_parameters
 }
 
@@ -1177,13 +960,10 @@ krg = geostatistics.Kriging(
     variogram_params=VARIOGRAM_PARAMETERS,
     coordinate_names=("x", "y"),
 )
-logging.info("Kriging-class object 'krg' created...")
 
 # REGISTER KRIGING METHOD
 krg.register_search_strategy("FEAT_strategy", feat.western_boundary_search_strategy)
 # ---- Parameterize
-logging.info("Custom nearest neighbor search strategy registered by 'krg' as 'FEAT_strategy'.")
-# ---- Define keyword arguments
 transect_western_extents = feat.get_survey_western_extents(
     transects=df_nasc_proc, coordinate_names=("x", "y"), latitude_threshold=51.0
 )
@@ -1192,55 +972,31 @@ FEAT_STRATEGY_KWARGS = {
 }
 
 # RUN KRIGING
-
-############################### CHANGES FOR NON-EXTRAPOLATION ######################################
-# ---- Crop mesh
-if EXTRAP_FLAG==True:
-    logging.info(
-        "Interpolating population estimates using ordinary kriging\n"
-        "     Variable: 'biomass_density'\n"
-        "     Extrapolation (full mesh): True\n"
-        "     Default mesh cell area: 6.25 nmi^2\n"
-    )
-else:
-    krg.crop_mesh(
-        crop_function=CROP_METHOD,
-        transects=df_nasc,
-        latitude_resolution=1.25 / 60.0,
-        transect_mesh_region_function=TRANSECT_MESH_REGION_MAP,
-    )
-
-    # ---- Register the custom search strategy
-    krg.register_search_strategy("FEAT_strategy", feat.western_boundary_search_strategy)
-    logging.info("Custom nearest neighbor search strategy registered by 'krg' as 'FEAT_strategy'.\n"
+logging.info(
     "Interpolating population estimates using ordinary kriging\n"
     "     Variable: 'biomass_density'\n"
     "     Extrapolation (full mesh): True\n"
     "     Default mesh cell area: 6.25 nmi^2\n"
-    )
-
-#########################
-
+)
 df_kriged_results = krg.krige(
     transects=df_nasc_proc,
     variable="biomass_density",
-    extrapolate=EXTRAP_FLAG,
+    extrapolate=True,
     default_mesh_cell_area=6.25,
     adaptive_search_strategy="FEAT_strategy",
     custom_search_kwargs=FEAT_STRATEGY_KWARGS
 )
+
 logging.info(
     f"Kriging complete\n"
     f"'df_kriged_results' created.\n"
     f"Global survey CV: {krg.survey_cv:.3f}"
 )
-
 # ==================================================================================================
 # CONVERT BIOMASS DENSITY TO NASC
 logging.info(
     "Converting biomass density estimates into NASC\n"
-#    "     Stratifying by: 'geostratum_ks'/'stratum_ks'\n"
-    "     Stratifying by: "+GEOSTRATUM_USE+"/"+STRATUM_USE+'\n'
+    "     Stratifying by: 'geostratum_ks'/'stratum_ks'\n"
     "     Grouping by: 'sex'\n"
     "     Using stratum weights for all fish: True"
 )
@@ -1253,8 +1009,8 @@ logging.info("New column in 'df_kriged_results': 'biomass'")
 apportionment.mesh_biomass_to_nasc(
     mesh_data=df_kriged_results,
     biodata=dict_da_weight_proportion,
-    group_columns=["sex", STRATUM_USE],
-    mesh_biodata_link={GEOSTRATUM_USE: STRATUM_USE},
+    group_columns=["sex", "stratum_ks"],
+    mesh_biodata_link={"geostratum_ks": "stratum_ks"},
     stratum_weights=da_averaged_weight.sel(sex="all"),
     stratum_sigma_bs=invert_hake.sigma_bs_strata,  
 )
@@ -1278,7 +1034,7 @@ logging.info(
 # DISTRIBUTE POPULATION ESTIMATES ACROSS AGE AND LENGTH BINS
 logging.info(
     "Distribute kriged population estimates across age- and length-bins\n"
-    "     Stratifying by: " +STRATUM_USE+"\n"
+    "     Stratifying by: 'stratum_ks'\n"
     "     Grouping by: 'sex'"
 )
 
@@ -1288,8 +1044,8 @@ dict_ds_kriged_abundance_table = apportionment.distribute_population_estimates(
     data=df_kriged_results,
     proportions = dict_ds_number_proportion,
     variable = "abundance",
-    group_columns = ["sex", "age_bin", "length_bin", STRATUM_USE],
-    data_proportions_link={GEOSTRATUM_USE: STRATUM_USE}
+    group_columns = ["sex", "age_bin", "length_bin", "stratum_ks"],
+    data_proportions_link={"geostratum_ks": "stratum_ks"}
 )
 logging.info("Abundance distributions complete\n'dict_kriged_abundance_table' created.")
 
@@ -1302,7 +1058,7 @@ logging.info(
 dict_ds_kriged_abundance_table["standardized_unaged"] = apportionment.distribute_unaged_from_aged(
     population_table = dict_ds_kriged_abundance_table["unaged"],
     reference_table = dict_ds_kriged_abundance_table["aged"],
-    stratum_dim = STRATUM_USE,
+    stratum_dim = "stratum_ks",
     impute = False 
 )
 
@@ -1312,8 +1068,8 @@ dict_ds_kriged_biomass_table = apportionment.distribute_population_estimates(
     data = df_kriged_results,
     proportions = dict_da_weight_proportion,
     variable = "biomass",
-    group_columns = ["sex", "age_bin", "length_bin", STRATUM_USE],
-    data_proportions_link={GEOSTRATUM_USE: STRATUM_USE}
+    group_columns = ["sex", "age_bin", "length_bin", "stratum_ks"],
+    data_proportions_link={"geostratum_ks": "stratum_ks"}
 )
 logging.info("Biomass distribution complete\n'dict_kriged_biomass_table' created.")
 
@@ -1326,7 +1082,7 @@ logging.info(
 dict_ds_kriged_biomass_table["standardized_unaged"] = apportionment.distribute_unaged_from_aged(
     population_table = dict_ds_kriged_biomass_table["unaged"],
     reference_table = dict_ds_kriged_biomass_table["aged"],
-    stratum_dim = STRATUM_USE,
+    stratum_dim = "stratum_ks",
     impute=True,
     impute_variable=["age_bin"],
 )
@@ -1349,7 +1105,6 @@ da_kriged_biomass_table = apportionment.sum_population_tables(
         "unaged": dict_ds_kriged_biomass_table["standardized_unaged"]
     },
 )
-logging.info("Biomass table complete\n'df_kriged_biomass_table' created.")
 
 # AGE-1 REALLOCATION ?
 if REMOVE_AGE1:
@@ -1371,24 +1126,9 @@ if REMOVE_AGE1:
         "Kriged age-1 abundance and biomass estimates redistributed\n"
         "'da_kriged_abundance_table_proc' and 'da_kriged_biomass_table_proc' created."
     )
-    
-    # UPDATED KRIGED ABUNDANCE WHEN REDISTRIBUTED
-    # ---- Redistribute JUST the aged 
-    da_kriged_abundance_table_aged = apportionment.reallocate_excluded_estimates(
-        population_table=dict_ds_kriged_abundance_table["aged"],
-        exclusion_filter={"age_bin": [1]},
-        group_columns=["sex"],
-    )
-    # ---- Construct dictionary of tables   
-    dict_ds_kriged_abundance_table_proc = {
-        "aged": da_kriged_abundance_table_aged,
-        "unaged": dict_ds_kriged_abundance_table["unaged"],
-    }    
 else:
     da_kriged_abundance_table_proc = da_kriged_abundance_table
     da_kriged_biomass_table_proc = da_kriged_biomass_table
-    dict_ds_kriged_abundance_table_proc = copy.deepcopy(dict_ds_kriged_abundance_table)
-
 # ==================================================================================================
 # JOLLY AND HAMPTON (1990) ANALYSIS
 # ==================================================================================================
@@ -1403,7 +1143,6 @@ JOLLYHAMPTON_PARAMETERS = {
 
 # INITIALIZE JOLLYHAMPTON CLASS OBJECT
 jh = stratified.JollyHampton(JOLLYHAMPTON_PARAMETERS)
-logging.info("Stratified-analysis-class object 'jh' created...")
 
 # RUN ON TRANSECT DATA
 logging.info(
@@ -1422,17 +1161,6 @@ logging.info(
     "     Confidence interval method: Jackknife studentized interval ('t-jackknife')"
 )
 df_jh_transect_results = jh.summarize(ci_percentile=0.95, ci_method="t-jackknife")
-logging.info("Stratified transect analysis results complete\n'df_jh_transect_results' created.")
-
-# REPORT
-logging.info(
-    f"Mean transect CV [95% CI]: "
-    f"{df_jh_transect_results.loc[('survey', 'cv')]['mean']:.3f} "
-    f"[{df_jh_transect_results.loc[('survey', 'cv')]['low']:.3f}, "
-    f"{df_jh_transect_results.loc[('survey', 'cv')]['high']:.3f}]\n"
-    f"    Resampling/bootstrapping bias: "
-    f"{df_jh_transect_results.loc[('survey', 'cv')]['bias']:.3f}"
-)
 
 # RUN ON KRIGED DATA
 # ---- Create virtual transects
@@ -1453,10 +1181,10 @@ logging.info(
     "     Variable: 'biomass'\n"
     "     Number of bootstrap replicates: 1000\n"
     "     Virtual transect sampling proportion: 0.75\n"
-    "     Stratifying by: "+GEOSTRATUM_USE
+    "     Stratifying by: 'geostratum_ks'"
 )
 jh.stratified_bootstrap(data=kriged_transects, 
-                        stratum_dim="geostratum_inpfc", #for the moment, keep as is.
+                        stratum_dim="geostratum_inpfc", 
                         variable="biomass")
 logging.info(
     "Summarizing results....\n"
@@ -1464,18 +1192,6 @@ logging.info(
     "     Confidence interval method: Jackknife studentized interval ('t-jackknife')"
 )
 df_jh_kriged_results = jh.summarize(ci_percentile=0.95, ci_method="t-jackknife")
-logging.info("Stratified kriged analysis results complete\n'df_jh_kriged_results' created.")
-
-# REPORT
-logging.info(
-    f"Mean kriging CV [95% CI]: "
-    f"{df_jh_kriged_results.loc[('survey', 'cv')]['mean']:.3f} "
-    f"[{df_jh_kriged_results.loc[('survey', 'cv')]['low']:.3f}, "
-    f"{df_jh_kriged_results.loc[('survey', 'cv')]['high']:.3f}]\n"
-    f"    Resampling/bootstrapping bias: "
-    f"{df_jh_kriged_results.loc[('survey', 'cv')]['bias']:.3f}"
-)
-
 # ==================================================================================================
 # REPORT GENERATION
 # ==================================================================================================
@@ -1484,19 +1200,16 @@ logging.info(
 )
 reporter = Reporter(REPORTS_DIR, verbose=VERBOSE)
 
-
 # AGED-LENGTH HAUL
 reporter.aged_length_haul_counts_report(
-    #filename="aged_length_haul_counts.xlsx",
-    filename=config_output["aged_length_haul_counts"],
+    filename="aged_length_haul_counts.xlsx",
     sheetnames={"male": "Sheet1", "female": "Sheet2", "all": "Sheet3"},
     bio_data=dict_df_bio["specimen"].dropna(subset=["age", "length", "weight"])
 )
 
 # TOTAL LENGTH HAUL COUNTS
 reporter.total_length_haul_counts_report(
-    #filename="total_length_haul_counts.xlsx",
-    filename=config_output["total_length_haul_counts"],
+    filename="total_length_haul_counts.xlsx",
     sheetnames={"male": "Sheet1", "female": "Sheet2", "all": "Sheet3"},
     bio_data=dict_df_bio
 )
@@ -1505,86 +1218,77 @@ reporter.total_length_haul_counts_report(
 
 # All values
 reporter.kriged_aged_biomass_mesh_report(
-    #filename="kriged_aged_biomass_mesh_full.xlsx",
-    filename=config_output["kriged_aged_biomass_mesh_full"],
+    filename="kriged_aged_biomass_mesh_full.xlsx",
     sheetnames={"all": "Sheet1", "male": "Sheet2", "female": "Sheet3"},
     kriged_data=df_kriged_results,
     weight_data=ds_da_weight_dist["aged"],
-    kriged_stratum_link={GEOSTRATUM_USE: STRATUM_USE},
+    kriged_stratum_link={"geostratum_ks": "stratum_ks"},
 )
 
 # Nonzero values
 reporter.kriged_aged_biomass_mesh_report(
-    #filename="kriged_aged_biomass_mesh_nonzero.xlsx",
-    filename=config_output["kriged_aged_biomass_mesh_nonzero"],
+    filename="kriged_aged_biomass_mesh_nonzero.xlsx",
     sheetnames={"all": "Sheet1", "male": "Sheet2", "female": "Sheet3"},
     kriged_data=df_kriged_results[df_kriged_results["biomass"] > 0.],
     weight_data=ds_da_weight_dist["aged"],
-    kriged_stratum_link={GEOSTRATUM_USE: STRATUM_USE},
+    kriged_stratum_link={"geostratum_ks": "stratum_ks"},
 )
 
 # KRIGERD MESH RESULTS
 
 # All values
 reporter.kriged_mesh_results_report(
-    #filename="kriged_biomass_mesh_full.xlsx",
-    filename=config_output["kriged_biomass_mesh_full"],
+    filename="kriged_biomass_mesh_full.xlsx",
     sheetname="Sheet1",
     kriged_data=df_kriged_results,
-    kriged_stratum=GEOSTRATUM_USE,
+    kriged_stratum="geostratum_ks",
     kriged_variable="biomass",
     sigma_bs_data=invert_hake.sigma_bs_strata,
-    sigma_bs_stratum=STRATUM_USE,
+    sigma_bs_stratum="stratum_ks",
 )
 
 # Nonzero values
 reporter.kriged_mesh_results_report(
-    #filename="kriged_biomass_mesh_nonzero.xlsx",
-    filename=config_output["kriged_biomass_mesh_nonzero"], 
+    filename="kriged_biomass_mesh_nonzero.xlsx",
     sheetname="Sheet1",
     kriged_data=df_kriged_results[df_kriged_results["abundance"] > 0.],
-    kriged_stratum=GEOSTRATUM_USE,
+    kriged_stratum="geostratum_ks",
     kriged_variable="biomass",
     sigma_bs_data=invert_hake.sigma_bs_strata,
-    sigma_bs_stratum=STRATUM_USE,
+    sigma_bs_stratum="stratum_ks",
 )
 
 # KRIGED LENGTH-AGE ABUNDANCES
 reporter.kriged_length_age_abundance_report(
-    #filename="kriged_length_age_abundance_report.xlsx",
-    filename=config_output["kriged_length_age_abundance_report"],
+    filename="kriged_length_age_abundance_report.xlsx",
     sheetnames={"male": "Sheet1", "female": "Sheet2", "all": "Sheet3"},
-    datatables=dict_ds_kriged_abundance_table_proc,
+    datatables=dict_ds_kriged_abundance_table,
 )
 
 # KRIGED LENGTH-AGE BIOMASS
 reporter.kriged_length_age_biomass_report(
-    #filename="kriged_length_age_biomass_report.xlsx",
-    filename=config_output["kriged_length_age_biomass_report"],
+    filename="kriged_length_age_biomass_report.xlsx",
     sheetnames={"male": "Sheet1", "female": "Sheet2", "all": "Sheet3"},
     datatable=da_kriged_biomass_table_proc,
 )
 
 # KRIGING INPUT
 reporter.kriging_input_report(
-    #filename="kriging_input_report.xlsx",
-    filename=config_output["kriging_input_report"],
+    filename="kriging_input_report.xlsx",
     sheetname="Sheet1",
     transect_data=df_nasc_proc,
 )
 
 # TRANSECT LENGTH-AGE ABUNDANCES
 reporter.transect_length_age_abundance_report(
-    #filename="transect_length_age_abundance_report.xlsx",
-    filename=config_output["transect_length_age_abundance_report"],
+    filename="transect_length_age_abundance_report.xlsx",
     sheetnames={"male": "Sheet1", "female": "Sheet2", "all": "Sheet3"},
     datatables=dict_ds_transect_abundance_table,
 )
 
 # TRANSECT LENGTH-AGE BIOMASS
 reporter.transect_length_age_biomass_report(
-    #filename="transect_length_age_biomass_report.xlsx",
-    filename=config_output["transect_length_age_biomass_report"],
+    filename="transect_length_age_biomass_report.xlsx",
     sheetnames={"male": "Sheet1", "female": "Sheet2", "all": "Sheet3"},
     datatable=da_transect_biomass_table,
 )
@@ -1593,8 +1297,7 @@ reporter.transect_length_age_biomass_report(
 
 # Full values
 reporter.transect_aged_biomass_report(
-    #filename="transect_aged_biomass_report_full.xlsx",
-    filename=config_output["transect_aged_biomass_report_full"],
+    filename="transect_aged_biomass_report_full.xlsx",
     sheetnames={"all": "Sheet1", "male": "Sheet2", "female": "Sheet3"},
     transect_data=df_nasc_proc,
     weight_data=ds_da_weight_dist["aged"],
@@ -1602,8 +1305,7 @@ reporter.transect_aged_biomass_report(
 
 # Nonzero values
 reporter.transect_aged_biomass_report(
-    #filename="transect_aged_biomass_report_nonzero.xlsx",
-    filename=config_output["transect_aged_biomass_report_nonzero"],
+    filename="transect_aged_biomass_report_nonzero.xlsx",
     sheetnames={"all": "Sheet1", "male": "Sheet2", "female": "Sheet3"},
     transect_data=df_nasc_proc[df_nasc_proc["biomass"] > 0.],
     weight_data=ds_da_weight_dist["aged"],
@@ -1613,116 +1315,94 @@ reporter.transect_aged_biomass_report(
 
 # Full values
 reporter.transect_population_results_report(
-    #filename="transect_population_results_full.xlsx",
-    filename=config_output["transect_population_results_full"],
+    filename="transect_population_results_full.xlsx",
     sheetname="Sheet1",
     transect_data=df_nasc_proc,
     weight_strata_data=da_averaged_weight,
     sigma_bs_stratum=invert_hake.sigma_bs_strata,
-    stratum_name=STRATUM_USE,
+    stratum_name="stratum_ks",
 )
+
 
 # Nonzero values
 reporter.transect_population_results_report(
-    #filename="transect_population_results_nonzero.xlsx",
-    filename=config_output["transect_population_results_nonzero"],
+    filename="transect_population_results_nonzero.xlsx",
     sheetname="Sheet1",
     transect_data=df_nasc_proc[df_nasc_proc["biomass"] > 0.],
     weight_strata_data=da_averaged_weight,
     sigma_bs_stratum=invert_hake.sigma_bs_strata,
-    stratum_name=STRATUM_USE,
+    stratum_name="stratum_ks",
 )
+
 
 # ==================================================================================================
 # [OPTIONAL] REPORT COMPARISONS WITH ECHOPRO
 # ==================================================================================================
 if COMPARE:
     # Dictionary map
-    ## Need to find in the directory the names of the files of the right type and put them in here
-    # Get files in EchoPro directory
-    # might be able to get some help from _resolve_geodata_file
-
-    # Match to the appropriate one
-    transect_0_excel_file = compare._resolve_geodata_file(
-    filepath=ECHOPRO_REPORTS_DIR, 
-    dataset= "echopro", 
-    type= "transect", 
-    echopop_patterns=ECHOPOP_PATTERNS, 
-    echopro_patterns=ECHOPRO_PATTERNS)
-
-    kriged_0_excel_file = compare._resolve_geodata_file(
-    filepath=ECHOPRO_REPORTS_DIR, 
-    dataset= "echopro", 
-    type= "kriging", 
-    echopop_patterns=ECHOPOP_PATTERNS, 
-    echopro_patterns=ECHOPRO_PATTERNS)
-
-# I think the ones with _1 below are not actually used, so don't need to worry about finding them.
     ECHOPRO_TO_ECHOPOP_FILE_MAP = {
         "aged_length_haul_counts": {
             "echopro": "aged_len_haul_counts_table.xlsx",
-            "echopop": config_output["aged_length_haul_counts"]
+            "echopop": "aged_length_haul_counts.xlsx"
         },
         "total_length_haul_counts": {
             "echopro": "total_len_haul_counts_table.xlsx",
-            "echopop": config_output["total_length_haul_counts"]
+            "echopop": "total_length_haul_counts.xlsx"
         },
         "aged_kriged_mesh_biomass_full": {
-            "echopro": "EchoPro_kriged_aged_output-2019_1.xlsx",
-            "echopop": config_output["kriged_aged_biomass_mesh_full"]
+            "echopro": "EchoPro_kriged_aged_output-1995_1.xlsx",
+            "echopop": "kriged_aged_biomass_mesh_full.xlsx"
         },
         "aged_kriged_mesh_biomass_subset": {
-            "echopro": "EchoPro_kriged_aged_output-2019_0.xlsx",
-            "echopop": config_output["kriged_aged_biomass_mesh_nonzero"]
+            "echopro": "EchoPro_kriged_aged_output-1995_0.xlsx",
+            "echopop": "kriged_aged_biomass_mesh_nonzero.xlsx"
         },
         "kriged_mesh_biomass_full": {
-            #"echopro": "EchoPro_kriged_output-04-Sep-2024_0.xlsx",
-            "echopro": kriged_0_excel_file,
-            "echopop": config_output["kriged_biomass_mesh_full"]
+            "echopro": "EchoPro_kriged_output-28-Jan-2026_0.xlsx",
+            "echopop": "kriged_biomass_mesh_full.xlsx"
         },
         "kriged_mesh_biomass_subset": {
-            "echopro": "EchoPro_kriged_output-04-Sep-2024_1.xlsx",
-            "echopop": config_output["kriged_biomass_mesh_nonzero"]
+            "echopro": "EchoPro_kriged_output-28-Jan-2026_1.xlsx",
+            "echopop": "kriged_biomass_mesh_nonzero.xlsx"
         },
         "kriging_input": {
             "echopro": "kriging_input.xlsx",
-            "echopop": config_output["kriging_input_report"]
+            "echopop": "kriging_input_report.xlsx"
         },
         "kriged_length_age_abundance": {
             "echopro": "kriged_len_age_abundance_table.xlsx",
-            "echopop": config_output["kriged_length_age_abundance_report"]
+            "echopop": "kriged_length_age_abundance_report.xlsx"
         },
         "kriged_length_age_biomass": {
             "echopro": "kriged_len_age_biomass_table.xlsx",
-            "echopop": config_output["kriged_length_age_biomass_report"]
+            "echopop": "kriged_length_age_biomass_report.xlsx"
         },
         "aged_transect_biomass_full": {
-            "echopro": "EchoPro_un-kriged_aged_output-2019_0.xlsx",
-            "echopop": config_output["transect_aged_biomass_report_full"]
+            "echopro": "EchoPro_un-kriged_aged_output-1995_0.xlsx",
+            "echopop": "transect_aged_biomass_report_full.xlsx"
         },
         "aged_transect_biomass_subset": {
-            "echopro": "EchoPro_un-kriged_aged_output-2019_1.xlsx",
-            "echopop": config_output["transect_aged_biomass_report_nonzero"]
+            "echopro": "EchoPro_un-kriged_aged_output-1995_1.xlsx",
+            "echopop": "transect_aged_biomass_report_nonzero.xlsx"
         },
         "transect_length_age_abundance": {
             "echopro": "un-kriged_len_age_abundance_table.xlsx",
-            "echopop": config_output["transect_length_age_abundance_report"]
+            "echopop": "transect_length_age_abundance_report.xlsx"
         },
         "transect_length_age_biomass": {
             "echopro": "un-kriged_len_age_biomass_table.xlsx",
-            "echopop": config_output["transect_length_age_biomass_report"]
+            "echopop": "transect_length_age_biomass_report.xlsx"
         },
         "transect_results_full": {
-            #"echopro": "EchoPro_un-kriged_output-04-Sep-2024_0.xlsx",
-            "echopro": transect_0_excel_file,
-            "echopop": config_output["transect_population_results_full"]
+            "echopro": "EchoPro_un-kriged_output-28-Jan-2026_0.xlsx",
+            "echopop": "transect_population_results_full.xlsx"
         },
         "transect_results_subset": {
-            "echopro": "EchoPro_un-kriged_output-04-Sep-2024_1.xlsx",
-            "echopop": config_output["transect_population_results_nonzero"]
+            "echopro": "EchoPro_un-kriged_output-28-Jan-2026_1.xlsx",
+            "echopop": "transect_population_results_nonzero.xlsx"
         }
     }
-
+    
     # AGED LENGTH HAUL COUNTS
     echopro_aged_length_haul_counts = compare.read_pivot_table_report(
         ECHOPRO_REPORTS_DIR / ECHOPRO_TO_ECHOPOP_FILE_MAP["aged_length_haul_counts"]["echopro"]
@@ -1750,6 +1430,8 @@ if COMPARE:
         save_filepath=COMPARISONS_DIR / "total_length_haul_counts.png",
         show_plot=SHOW_PLOT
     )
+    
+    echopro_total_length_haul_counts["female"] - echopop_total_length_haul_counts["female"]
     
     # KRIGED LENGTH-AGE ABUNDANCE
     echopro_kriged_abundance_table = compare.read_pivot_table_report(
@@ -1901,3 +1583,6 @@ if COMPARE:
         },
         show_plot=SHOW_PLOT
     )
+
+
+

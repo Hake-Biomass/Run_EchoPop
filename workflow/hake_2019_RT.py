@@ -414,7 +414,15 @@ else:
     # Regions in EchoPop are filtered by region name, not by class
     rows = df_exports[df_exports["region_class"] == "unknown"].index
     df_exports.drop(rows, inplace=True)
-    
+
+    ## >>>>> If age-2+ estimate, filter out age-1 regions (RT added)
+    # If just doing age-2+ estimates, add in a filter to remove age-1 class regions.  In 2015,
+    # an age-1 class region with significant backscatter was not named correctly, and was misinterpreted as an adult reigon.
+    if REMOVE_AGE1:
+        rows1 = df_exports[df_exports["region_class"] == "age-1 hake"].index
+        df_exports.drop(rows1, inplace=True)
+
+
     # >>>> Maybe insert `utils.add_uid` (or equivalent function)
     df_exports_with_regions = ingestion.nasc.process_region_names(
         nasc_cells=df_exports,
