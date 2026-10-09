@@ -34,7 +34,7 @@ except Exception:
 Year= 2015
 Years=[Year]
 runyearstr=str(Year) #added by RT
-EXTRAP_FLAG= True #True or False
+EXTRAP_FLAG= False #True or False
 STRATA_TYPE="ks" #ks or inpfc
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
