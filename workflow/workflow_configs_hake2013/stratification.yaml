@@ -1,7 +1,11 @@
 data_root: C:/rthomas/Projects/EchoPop_validation/Data
 strata_file: EP_US&CAN strata 2013 12-2-2013.xlsx
-transect_region_haul_file: US&CAN_2013_transect_region_haul_age1+ auto final_new.xlsx
-transect_region_haul_sheet: "Sheet1"
+transect_region_haul_file: US&CAN_2013_T_reg_haul_final.xlsx
+transect_region_haul_columns:
+  transect: transect_num
+  region id: region_id
+  assigned haul: haul_num
+transect_region_haul_sheet: "2013 x1-140 FINAL"
 strata_sheets: 
     inpfc: "INPFC"
     ks: "Base KS"

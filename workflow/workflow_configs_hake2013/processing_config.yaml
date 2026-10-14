@@ -1,3 +1,9 @@
-NASC_PREPROCESSED_INPUT: False
-
+NASC_PREPROCESSED_INPUT: True
+transect_region_haul_type: manual
+transect_boundary_filter: True
+transect_boundary:
+  transect_boundary_file: Transect Bounds from 2012.xlsx
+  transect_boundary_sheet: "2012-2013"
+  survey_filter: "survey == 201305"
+  
 

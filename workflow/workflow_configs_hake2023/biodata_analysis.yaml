@@ -8,3 +8,16 @@ length:
     end: 80
     count: 40
     column: length
+selectivity:
+  # Defaults to l50/sr values but supports intercept(alpha)/slope(beta)
+  parameters:
+    AWT:
+      l50: 14.6
+      sr: 15.3
+      #intercept: -2.09
+      #slope: 0.14
+    MFT:
+      l50: 6.3
+      sr: 6.7
+      #intercept: -2.06
+      #slope: 0.33

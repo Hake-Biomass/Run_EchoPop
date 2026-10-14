@@ -1,3 +1,4 @@
 NASC_PREPROCESSED_INPUT: False
-
+transect_region_haul_type: auto
+transect_boundary_filter: False
 
