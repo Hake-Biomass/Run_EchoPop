@@ -36,6 +36,7 @@ Years=[Year]
 runyearstr=str(Year) #added by RT
 EXTRAP_FLAG= True #True or False
 STRATA_TYPE="ks" #ks or inpfc
+#TRANSECT_REGION_HAUL_TYPE="manual" #manual or auto.  I don't think 2013 can actually run auto, but this is setting up for across-year workflow 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 # Read in configuration
@@ -45,6 +46,7 @@ config_analysis = yaml.safe_load(Path("workflow/workflow_configs_hake"+runyearst
 config_kriging = yaml.safe_load(Path("workflow/workflow_configs_hake"+runyearstr+"/kriging_config.yaml").read_text(encoding="utf-8"))
 config_nasc = yaml.safe_load(Path("workflow/workflow_configs_hake"+runyearstr+"/nasc_config.yaml").read_text(encoding="utf-8"))
 config_output = yaml.safe_load(Path("workflow/workflow_configs_hake"+runyearstr+"/output_config.yaml").read_text(encoding="utf-8"))
+config_processing=yaml.safe_load(Path("workflow/workflow_configs_hake"+runyearstr+"/processing_config.yaml").read_text(encoding="utf-8"))
 
 
 # Root data directory
@@ -95,7 +97,15 @@ TRANSECT_REGION_HAUL_FILE = Path(DATA_STRATA_ROOT / config_strata["transect_regi
 # TRANSECT REGION HAUL MAPPING SHEET
 TRANSECT_REGION_HAUL_SHEET = config_strata["transect_region_haul_sheet"]
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# TRANSECT BOUNDARY FILE
+TRANSECT_BOUNDARY_FILE = (
+    DATA_ROOT / "Kriging files & parameters/Kriging grid files/Transect Bounds from 2012.xlsx"
+)
+# TRANSECT BOUNDARY SHEET
+TRANSECT_BOUNDARY_SHEET = "2012-2013"
+# SURVEY FILTER
+SURVEY_FILTER = "survey == 201305"
 
 # ---------------------------
 # Stage 1: Biodata ingestion
@@ -400,18 +410,28 @@ else:
     )
 
     # TRANSECT REGION HAUL KEY NAME MAPPING
-    TRANSECT_REGION_FILE_RENAME = {
-        "tranect": "transect_num",
-        "region id": "region_id",
-        "trawl #": "haul_num",
-    }
+    # TRANSECT_REGION_FILE_RENAME = {
+    #     "tranect": "transect_num",
+    #     "region id": "region_id",
+    #     "trawl #": "haul_num",
+    # }
+    TRANSECT_REGION_FILE_RENAME=config_strata["transect_region_haul_columns"]
+    TRANSECT_REGION_HAUL_TYPE= config_processing["transect_region_haul_type"]
+    if TRANSECT_REGION_HAUL_TYPE == "manual":
+        # LOAD in manual key
+        df_transect_region_haul_key = ingestion.nasc.read_transect_region_haul_key(
+            filename=TRANSECT_REGION_HAUL_FILE,
+            sheetname=TRANSECT_REGION_HAUL_SHEET,
+            column_name_map=TRANSECT_REGION_FILE_RENAME
+        )
+        logging.info(
+        "---- Manual transect region haul mapping\n"
+        )
+    else: 
+        logging.info(
+        "---- Automatic transect region haul mapping\n"
+        )
 
-    # LOAD in manual key
-    df_transect_region_haul_key = ingestion.nasc.read_transect_region_haul_key(
-        filename=TRANSECT_REGION_HAUL_FILE,
-        sheetname=TRANSECT_REGION_HAUL_SHEET,
-        column_name_map=TRANSECT_REGION_FILE_RENAME
-    )
 
     # # EXPORT REGION NAME MAPPING
     # REGION_NAME_EXPR_DICT = {
@@ -505,6 +525,18 @@ else:
 logging.info(
     "NASC ingestion complete\n"
     "'df_nasc' created."
+)
+
+# FILTER
+logging.info(
+    f"---- Filtering out off-effort transect intervals based on: {TRANSECT_BOUNDARY_FILE}\n"
+    f"     Survey filter: '{SURVEY_FILTER}'"
+)
+df_nasc = utils.filter_transect_intervals(
+    nasc_data=df_nasc, 
+    transect_filter=TRANSECT_BOUNDARY_FILE,
+    transect_filter_sheet=TRANSECT_BOUNDARY_SHEET,
+    survey_filter=SURVEY_FILTER
 )
 
 # DROP TRANSECTS
