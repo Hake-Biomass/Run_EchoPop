@@ -6,7 +6,7 @@ from echopop.workflow_examples import cli_utils
 from echopop import utils
 from echopop.utils import feat_functions as feat, feat_parameters as feat_parameters
 #from echopop.workflows.nwfsc_feat import functions as feat, parameters as feat_parameters
-from echopop.survey import apportionment, biology, proportions, stratified, transect
+from echopop.survey import apportionment, biology, proportions, stratified, transect, selectivity
 import echopop.ingest as ingestion
 import yaml
 from echopop.survey import biology
@@ -36,6 +36,7 @@ Years=[Year]
 runyearstr=str(Year) #added by RT
 EXTRAP_FLAG= True #True or False
 STRATA_TYPE="ks" #ks or inpfc
+NET_SEL_FLAG= True #True or False;  true if what to correct for net selectivity
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 # Read in configuration
