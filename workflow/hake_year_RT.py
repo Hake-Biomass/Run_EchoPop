@@ -32,10 +32,14 @@ except Exception:
     # ---- FOR INTERACTIVE REPL USE
     VERBOSE = True
 #these are things tha may be brought in by cli_utils. For now define here
-Year= 2015
+#Commented out parts below are for when need to debug
+#Year= 2015
+#EXTRAP_FLAG = True
+#STRATA_TYPE = "ks"
 Year = cli_utils_hake.get_year()
 EXTRAP_FLAG = cli_utils_hake.get_extrap_flag()  #Use --extrap to enable extrapolation or --no-extrap to disable it. Omitting both keeps it enabled.
 STRATA_TYPE = cli_utils_hake.get_strata_type()  #default is KS
+
 Years=[Year]
 runyearstr=str(Year) #added by RT
 #EXTRAP_FLAG= True #True or False
@@ -433,27 +437,48 @@ else:
         rows1 = df_exports[df_exports["region_class"] == "age-1 hake"].index
         df_exports.drop(rows1, inplace=True)
 
-    # >>>> Maybe insert `utils.add_uid` (or equivalent function)
-    df_exports_with_regions = ingestion.nasc.process_region_names(
-        nasc_cells=df_exports,
-        region_name_expr=REGION_NAME_EXPR_DICT,
-        can_haul_offset=CAN_HAUL_OFFSET,
-    )
-    
-    # GENERATE TRANSECT-REGION-HAUL KEY
+        # GENERATE TRANSECT-REGION-HAUL KEY
     if REMOVE_AGE1:
         CLASS_REGIONS = ["Hake", "Hake Mix"]
     else:
         CLASS_REGIONS = ["Age-1 Hake", "Age-1 Hake Mix", "Hake", "Hake Mix"]
-    logging.info(
-        f"---- Generating transect-region-haul key mapping\n"
-        f"     Searching for the export regions: {', '.join(CLASS_REGIONS)}"
-    )
-    df_transect_region_haul_key = ingestion.nasc.generate_transect_region_haul_key(
-        region_data=df_exports_with_regions,
-        filter_list=CLASS_REGIONS
-    )
-    
+
+
+    TRANSECT_REGION_HAUL_TYPE= config_processing["transect_region_haul_type"]
+    if TRANSECT_REGION_HAUL_TYPE == "manual":
+        # LOAD in manual key
+        TRANSECT_REGION_FILE_RENAME=config_strata["transect_region_haul_columns"]
+        # TRANSECT REGION HAUL MAPPING FILE
+        TRANSECT_REGION_HAUL_FILE = Path(DATA_STRATA_ROOT / config_strata["transect_region_haul_file"])
+        # TRANSECT REGION HAUL MAPPING SHEET
+        TRANSECT_REGION_HAUL_SHEET = config_strata["transect_region_haul_sheet"]
+        df_transect_region_haul_key = ingestion.nasc.read_transect_region_haul_key(
+            filename=TRANSECT_REGION_HAUL_FILE,
+            sheetname=TRANSECT_REGION_HAUL_SHEET,
+            column_name_map=TRANSECT_REGION_FILE_RENAME
+        )
+        #Not sure if age-1 regions still need to be filtered out here?
+        df_exports_with_regions=df_exports #just for manual transect_region_haul
+        logging.info(
+        "---- Manual transect region haul mapping\n"
+        )
+    else: #for auto
+        logging.info(
+        "---- Automatic transect region haul mapping\n"
+        )
+        
+        # >>>> Maybe insert `utils.add_uid` (or equivalent function)
+        df_exports_with_regions = ingestion.nasc.process_region_names(
+            nasc_cells=df_exports,
+            region_name_expr=REGION_NAME_EXPR_DICT,
+            can_haul_offset=CAN_HAUL_OFFSET,
+        )
+
+        df_transect_region_haul_key = ingestion.nasc.generate_transect_region_haul_key(
+            region_data=df_exports_with_regions,
+            filter_list=CLASS_REGIONS
+        )
+
     # AGE-1 DOMINATED HAUL REMOVAL
     if REMOVE_AGE1:
         logging.info(
@@ -465,6 +490,8 @@ else:
             df_transect_region_haul_key, exclude_filter={"haul_num": AGE1_DOMINATED_HAULS}
         )
 
+
+    # ended if loop
     # CONSOLIDATE THE EXPORTS WITH TRANSECT-REGION-HAUL MAPPINGS
     logging.info(
         "---- Finalizing NASC export ingestion\n"
@@ -486,6 +513,27 @@ logging.info(
     "NASC ingestion complete\n"
     "'df_nasc' created."
 )
+
+# BOUNDARY FILTERING
+# FILTER
+TRANSECT_BOUNDARY_FILTER=config_processing["transect_boundary_filter"]
+if TRANSECT_BOUNDARY_FILTER == True: 
+    TRANSECT_BOUNDARY_FILE= Path(DATA_ROOT) / "Kriging files & parameters/Kriging Grid Files" / config_processing["transect_boundary"]["transect_boundary_file"]
+    TRANSECT_BOUNDARY_SHEET=config_processing["transect_boundary"]["transect_boundary_sheet"]
+    SURVEY_FILTER=config_processing["transect_boundary"]["survey_filter"]
+    df_nasc = utils.filter_transect_intervals(
+        nasc_data=df_nasc, 
+        transect_filter=TRANSECT_BOUNDARY_FILE,
+        transect_filter_sheet=TRANSECT_BOUNDARY_SHEET,
+        survey_filter=SURVEY_FILTER
+    )
+
+    logging.info(
+        f"---- Filtering out off-effort transect intervals based on: {TRANSECT_BOUNDARY_FILE}\n"
+        f"     Survey filter: '{SURVEY_FILTER}'"
+    )
+
+# Done with Transect_boundary if statement
 
 # DROP TRANSECTS
 df_nasc = utils.apply_filters(df_nasc, include_filter={"transect_num": np.arange(1, 2000)})
