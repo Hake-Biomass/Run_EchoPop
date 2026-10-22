@@ -39,7 +39,8 @@ except Exception:
 # ALREADY PROCESSED NASC FILE ? 
 # ---- When False, the raw NASC exports will be processed. When True, the pre-formatted NASC 
 # ---- spreadsheet will be read in. This also requires defining `NASC_EXPORTS_SHEET`
-NASC_PREPROCESSED = True
+#NASC_PREPROCESSED = True
+NASC_PREPROCESSED = config_processing["NASC_PREPROCESSED_INPUT"]
 # NASC EXPORTS FILE(S)
 NASC_EXPORTS_FILES = DATA_ROOT / "input/Exports/US&CAN_detailsa_2011_table2y+_ALL_final.xlsx"
 # NASC EXPORTS SHEET
