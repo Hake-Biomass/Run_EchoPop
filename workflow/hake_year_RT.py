@@ -198,7 +198,8 @@ else:
 # BIODATA PROCESSING: AGE-1 DOMINATED HAULS
 # ---- This is a list of age-1 dominated haul numbers that should be designated for removal. If no
 # ---- hauls should be removed, then set `AGE1_DOMINATED_HAULS` to `[]`
-AGE1_DOMINATED_HAULS = []
+#AGE1_DOMINATED_HAULS = []
+AGE1_DOMINATED_HAULS = config_processing["age_1_dominated_hauls"]
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # HAUL STRATIFICATION FILE
 # ------------------------------------
@@ -394,7 +395,7 @@ else:
     df_intervals, df_exports = ingestion.nasc.merge_echoview_nasc(
         file_directory = NASC_EXPORTS_PATH,
         filename_transect_pattern = r"T(\d+)",
-        default_transect_spacing = 10.0,
+        default_transect_spacing = config_nasc["default_transect_spacing"],
         default_latitude_threshold = 60.0,
         latlon_suffix="s",
     )
