@@ -1,0 +1,27 @@
+data_root: C:/rthomas/Projects/EchoPop_validation/Data
+strata_file: EP_US&CAN strata 2005.xlsx
+transect_region_haul_file: US&CAN_T_reg_haul_final.xlsx
+transect_region_haul_columns:
+  transect: transect_num
+  region id: region_id
+  assigned haul: haul_num
+transect_region_haul_sheet: 2005_Regions_Trawls
+strata_sheets: 
+    inpfc: "INPFC"
+    ks: "Base KS"
+rename_strata_columns:
+  fraction_hake: nasc_proportion
+  haul: haul_num
+  stratum: stratum_num
+  length: stratum_length
+default_stratum: 0
+geo_strata_file: EP_Stratification_geographic_Lat_2005.xlsx
+geo_strata_sheets: 
+    inpfc: "INPFC"
+    ks: "Base KS"
+rename_geo_strata_columns:
+  latitude (upper limit): "northlimit_latitude"
+  stratum: "stratum_num"
+stratum_source: ks
+stratum_name: stratum_ks
+join_method: uid
