@@ -1,9 +1,8 @@
 ####################################################################################################
-# YEAR - set year below and should work for any year.  Tested 2015-
+# 2019 
 # ----
 from pathlib import Path
 from echopop.workflow_examples import cli_utils
-import cli_utils_hake
 from echopop import utils
 from echopop.utils import feat_functions as feat, feat_parameters as feat_parameters
 #from echopop.workflows.nwfsc_feat import functions as feat, parameters as feat_parameters
@@ -27,20 +26,16 @@ from typing import Callable
 # ---- script progresses
 try: 
     # ---- FOR CLI USE
-    VERBOSE = cli_utils_hake.get_verbose()
+    VERBOSE = cli_utils.get_verbose()
 except Exception:
     # ---- FOR INTERACTIVE REPL USE
     VERBOSE = True
 #these are things tha may be brought in by cli_utils. For now define here
-Year= 2015
-Year = cli_utils_hake.get_year()
-EXTRAP_FLAG = cli_utils_hake.get_extrap_flag()  #Use --extrap to enable extrapolation or --no-extrap to disable it. Omitting both keeps it enabled.
-STRATA_TYPE = cli_utils_hake.get_strata_type()  #default is KS
-
+Year= 2019
 Years=[Year]
 runyearstr=str(Year) #added by RT
-#EXTRAP_FLAG= True #True or False
-#STRATA_TYPE="ks" #ks or inpfc
+EXTRAP_FLAG= True #True or False
+STRATA_TYPE="ks" #ks or inpfc
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 # Read in configuration
@@ -50,7 +45,7 @@ config_analysis = yaml.safe_load(Path("workflow/workflow_configs_hake"+runyearst
 config_kriging = yaml.safe_load(Path("workflow/workflow_configs_hake"+runyearstr+"/kriging_config.yaml").read_text(encoding="utf-8"))
 config_nasc = yaml.safe_load(Path("workflow/workflow_configs_hake"+runyearstr+"/nasc_config.yaml").read_text(encoding="utf-8"))
 config_output = yaml.safe_load(Path("workflow/workflow_configs_hake"+runyearstr+"/output_config.yaml").read_text(encoding="utf-8"))
-config_processing=yaml.safe_load(Path("workflow/workflow_configs_hake"+runyearstr+"/processing_config.yaml").read_text(encoding="utf-8"))
+
 
 # Root data directory
 DATA_ROOT = Path(config_ingest["data_root"])
@@ -93,17 +88,6 @@ COMPARE=True
 # REMOVE AGE-1 (I.E., AGE-2+ ONLY)?
 REMOVE_AGE1 = True
 
-# Flags for later use
-NASC_PREPROCESSED = config_processing["NASC_PREPROCESSED_INPUT"]
-
-####################################################################################################
-# FORMAT LOGGER
-for handler in logging.root.handlers[:]:
-    logging.root.removeHandler(handler)
-    
-logging.basicConfig(
-    level=logging.INFO if VERBOSE else logging.WARNING,
-    format="%(message)s")
 # ---------------------------
 # Stage 1: Biodata ingestion
 # ---------------------------
@@ -111,8 +95,7 @@ logging.basicConfig(
 BIODATA_FILE = Path(DATA_ROOT / "biological/updated"  / config_ingest["biodata_file"])
 
 logging.info(
-    f"Beginning biodata ingestion for: '{BIODATA_FILE.as_posix()}'.\n"
-    f"Year is {runyearstr}."
+    f"Beginning biodata ingestion for: '{BIODATA_FILE.as_posix()}'."
 )
 
 # Biodata file sheetnames
@@ -243,7 +226,7 @@ else:
 # GEOGRAPHIC STRATIFICATION FILE
 GEOSTRATA_FILE=Path(DATA_STRATA_ROOT) / config_strata["geo_strata_file"]
 logging.info(
-    f"Load in geographic-based stratification: '{GEOSTRATA_FILE.as_posix()}'.\n"
+    f"Load in geographic-based stratification: '{GEOSTRATA_FILE.as_posix()}'."
 )
 
 df_dict_geostrata = ingestion.load_geostrata(
@@ -347,7 +330,14 @@ import xarray as xr
 from lmfit import Parameters
 from echopop.reports import Reporter, compare
 from echopop import geostatistics, inversion, utils
-
+####################################################################################################
+# FORMAT LOGGER
+for handler in logging.root.handlers[:]:
+    logging.root.removeHandler(handler)
+    
+logging.basicConfig(
+    level=logging.INFO if VERBOSE else logging.WARNING,
+    format="%(message)s")
 # ==================================================================================================
 # DATA INGESTION 
 # ==================================================================================================
@@ -391,9 +381,8 @@ else:
     df_intervals, df_exports = ingestion.nasc.merge_echoview_nasc(
         file_directory = NASC_EXPORTS_PATH,
         filename_transect_pattern = r"T(\d+)",
-        default_transect_spacing = 10.0,
+        default_transect_spacing = config_nasc["default_transect_spacing"],
         default_latitude_threshold = 60.0,
-        latlon_suffix="s",
     )
 
     # EXPORT REGION NAME MAPPING
@@ -419,7 +408,6 @@ else:
         f"---- Processing export region names\n"
         f"     Applying CAN haul number offset: {CAN_HAUL_OFFSET}"
     )
-    
 
     ## >>>> Filter out any class "unknown" from df_exports (RT added)
     # In 2015 on x49 there was a region that was named as a hake mix region, but later changed to unknown.  
@@ -433,6 +421,7 @@ else:
     if REMOVE_AGE1:
         rows1 = df_exports[df_exports["region_class"] == "age-1 hake"].index
         df_exports.drop(rows1, inplace=True)
+
 
     # >>>> Maybe insert `utils.add_uid` (or equivalent function)
     df_exports_with_regions = ingestion.nasc.process_region_names(
@@ -450,8 +439,6 @@ else:
         f"---- Generating transect-region-haul key mapping\n"
         f"     Searching for the export regions: {', '.join(CLASS_REGIONS)}"
     )
-    
-    
     df_transect_region_haul_key = ingestion.nasc.generate_transect_region_haul_key(
         region_data=df_exports_with_regions,
         filter_list=CLASS_REGIONS
@@ -491,7 +478,7 @@ logging.info(
 )
 
 # DROP TRANSECTS
-df_nasc = utils.apply_filters(df_nasc, include_filter={"transect_num": np.arange(1, 2000)})
+df_nasc = utils.apply_filters(df_nasc, include_filter={"transect_num": np.arange(1, 200)})
 # # ==================================================================================================
 
 # AGE-1 DOMINATED HAUL REMOVAL

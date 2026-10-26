@@ -9,6 +9,7 @@ from echopop.utils import feat_functions as feat, feat_parameters as feat_parame
 #from echopop.workflows.nwfsc_feat import functions as feat, parameters as feat_parameters
 from echopop.survey import apportionment, biology, proportions, stratified, transect
 import echopop.ingest as ingestion
+import pandas as pd
 import yaml
 from echopop.survey import biology
 import logging
@@ -688,30 +689,40 @@ df_mesh = ingestion.join_geostrata_by_latitude(
 )
 logging.info("Strata application complete!")
 # ==================================================================================================
-# # BINIFY DATA 
+# BIN DATA USING EXPLICIT EDGES
 # ---------------------------
 # Stage 3: Analysis bin setup
 # ---------------------------
-# Binify data
-# --- Age-bins
-AGE_BINS = np.linspace(
-    start=config_analysis["age"]["start"], 
-    stop=config_analysis["age"]["end"], 
-    num=config_analysis["age"]["count"]
-)
-utils.binify(
-    data=dict_df_bio, bins=AGE_BINS, bin_column=config_analysis["age"]["column"],
+def configured_bin_edges(bin_config):
+    if "bin_edges" in bin_config:
+        return np.asarray(bin_config["bin_edges"], dtype=float)
+
+    bin_centers = np.linspace(
+        start=bin_config["start"],
+        stop=bin_config["end"],
+        num=bin_config["count"],
+    )
+    bin_width = bin_centers[1] - bin_centers[0]
+    return np.linspace(
+        bin_centers[0] - bin_width / 2,
+        bin_centers[-1] + bin_width / 2,
+        num=bin_centers.size + 1,
+    )
+
+
+AGE_BIN_EDGES = configured_bin_edges(config_analysis["age"])
+AGE1_BIN = pd.Interval(AGE_BIN_EDGES[0], AGE_BIN_EDGES[1], closed="right")
+dict_df_bio["specimen"]["age_bin"] = pd.cut(
+    dict_df_bio["specimen"][config_analysis["age"]["column"]],
+    bins=AGE_BIN_EDGES,
 )
 
-# LENGTH-BINS
-LENGTH_BINS = np.linspace(
-    start=config_analysis["length"]["start"], 
-    stop=config_analysis["length"]["end"], 
-    num=config_analysis["length"]["count"]
-)
-utils.binify(
-    data=dict_df_bio, bins=LENGTH_BINS, bin_column=config_analysis["length"]["column"], 
-)
+LENGTH_BIN_EDGES = configured_bin_edges(config_analysis["length"])
+for dataset in ("specimen", "length"):
+    dict_df_bio[dataset]["length_bin"] = pd.cut(
+        dict_df_bio[dataset][config_analysis["length"]["column"]],
+        bins=LENGTH_BIN_EDGES,
+    )
 
 logging.info("Age and length binning complete!")
 # ==================================================================================================
@@ -744,7 +755,7 @@ logging.info(
 # SEX-SPECIFIC
 da_binned_weights_sex = biology.length_binned_weights(
     data=dict_df_bio["specimen"],
-    length_bins=LENGTH_BINS,
+    length_bin_edges=LENGTH_BIN_EDGES,
     regression_coefficients=dict_length_weight_coefs["sex"],
     impute_bins=True,
     minimum_count_threshold=5
@@ -753,7 +764,7 @@ da_binned_weights_sex = biology.length_binned_weights(
 # ALL FISH
 da_binned_weights_all = biology.length_binned_weights(
     data=dict_df_bio["specimen"].assign(sex="all"),
-    length_bins=LENGTH_BINS,
+    length_bin_edges=LENGTH_BIN_EDGES,
     regression_coefficients=dict_length_weight_coefs["all"],
     impute_bins=True,
     minimum_count_threshold=5,
@@ -974,21 +985,21 @@ if REMOVE_AGE1:
         number_proportions=dict_ds_number_proportion["aged"],
         stratum_dim=STRATUM_USE,
         ts_length_regression_parameters={"slope": 20.0, "intercept": -68.0},
-        include_filter={"age_bin": [1]},
+        include_filter={"age_bin": [AGE1_BIN]},
     )
 
     # NUMBER
     age1_number_proportions = proportions.get_number_proportions_slice(
         number_proportions=dict_ds_number_proportion["aged"],
         stratum_dim=STRATUM_USE,
-        include_filter={"age_bin": [1]},
+        include_filter={"age_bin": [AGE1_BIN]},
     )
 
     # WEIGHT
     age1_weight_proportions = proportions.get_weight_proportions_slice(
         weight_proportions=dict_da_weight_proportion["aged"],
         stratum_dim=STRATUM_USE,
-        include_filter={"age_bin": [1]},
+        include_filter={"age_bin": [AGE1_BIN]},
         number_proportions=dict_ds_number_proportion,
         length_threshold_min=10.0,
         weight_proportion_threshold=1e-10,
@@ -1416,14 +1427,14 @@ if REMOVE_AGE1:
     logging.info("Redistributing kriged age-1 abundances and biomasses...")
     da_kriged_abundance_table_proc = apportionment.reallocate_excluded_estimates(
         population_table=da_kriged_abundance_table,
-        exclusion_filter={"age_bin": [1]},
+        exclusion_filter={"age_bin": [AGE1_BIN]},
         group_columns=["sex"],
     )
 
     # REDISTRIBTUE AGE-1 BIOMASS
     da_kriged_biomass_table_proc = apportionment.reallocate_excluded_estimates(
         population_table=da_kriged_biomass_table,
-        exclusion_filter={"age_bin": [1]},
+        exclusion_filter={"age_bin": [AGE1_BIN]},
         group_columns=["sex"],
     )
     logging.info(
@@ -1435,7 +1446,7 @@ if REMOVE_AGE1:
     # ---- Redistribute JUST the aged 
     da_kriged_abundance_table_aged = apportionment.reallocate_excluded_estimates(
         population_table=dict_ds_kriged_abundance_table["aged"],
-        exclusion_filter={"age_bin": [1]},
+        exclusion_filter={"age_bin": [AGE1_BIN]},
         group_columns=["sex"],
     )
     # ---- Construct dictionary of tables   
