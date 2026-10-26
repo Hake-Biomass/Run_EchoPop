@@ -13,6 +13,7 @@ rename_strata_columns:
   fraction_hake: nasc_proportion
   haul: haul_num
   stratum: stratum_num
+  length: stratum_length
 default_stratum: 0
 geo_strata_file: EP_Stratification_geographic_Lat.xlsx
 geo_strata_sheets: 

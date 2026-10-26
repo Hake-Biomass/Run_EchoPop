@@ -34,7 +34,7 @@ except Exception:
 Year= 2011
 Years=[Year]
 runyearstr=str(Year) #added by RT
-EXTRAP_FLAG= False #True or False
+EXTRAP_FLAG= True #True or False
 STRATA_TYPE="ks" #ks or inpfc
 #TRANSECT_REGION_HAUL_TYPE="manual" #manual or auto.  I don't think 2013 can actually run auto, but this is setting up for across-year workflow 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

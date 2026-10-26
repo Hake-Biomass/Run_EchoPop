@@ -1,0 +1,9 @@
+NASC_PREPROCESSED_INPUT: False
+transect_region_haul_type: manual
+transect_boundary_filter: True
+transect_boundary:
+  transect_boundary_file: Transect Bounds to 2011.xlsx
+  transect_boundary_sheet: "1995-2011"
+  survey_filter: "survey in [200903, 200952]"
+age_1_dominated_hauls: []  
+
