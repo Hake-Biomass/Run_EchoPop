@@ -440,11 +440,16 @@ else:
         df_exports.drop(rows1, inplace=True)
 
         # GENERATE TRANSECT-REGION-HAUL KEY
+    # if REMOVE_AGE1:
+    #     CLASS_REGIONS = ["Hake", "Hake Mix"]
+    # else:
+    #     CLASS_REGIONS = ["Age-1 Hake", "Age-1 Hake Mix", "Hake", "Hake Mix"]
+    # GENERATE TRANSECT-REGION-HAUL KEY
     if REMOVE_AGE1:
-        CLASS_REGIONS = ["Hake", "Hake Mix"]
+        CLASS_REGIONS = config_processing["remove_age1_class_regions"]
     else:
-        CLASS_REGIONS = ["Age-1 Hake", "Age-1 Hake Mix", "Hake", "Hake Mix"]
-
+        #CLASS_REGIONS = ["Age-1 Hake", "Age-1 Hake Mix", "Hake", "Hake Mix", "Hake 1","Hake 2"]
+        CLASS_REGIONS = config_processing["all_class_regions"]
 
     TRANSECT_REGION_HAUL_TYPE= config_processing["transect_region_haul_type"]
     if TRANSECT_REGION_HAUL_TYPE == "manual":

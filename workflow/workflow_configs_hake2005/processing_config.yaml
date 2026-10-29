@@ -6,4 +6,5 @@ transect_boundary:
   transect_boundary_sheet: "1995-2011"
   survey_filter:   "survey == 200509"
 age_1_dominated_hauls: []  
-
+remove_age1_class_regions: ["Hake", "Hake Mix", "Hake 1", "Hake 2"]
+all_class_regions: ["Age-1 Hake", "Age-1 Hake Mix", "Hake", "Hake Mix", "Hake 1", "Hake 2"]

@@ -35,7 +35,7 @@ except Exception:
 Year= 2005
 Years=[Year]
 runyearstr=str(Year) #added by RT
-EXTRAP_FLAG= False #True or False
+EXTRAP_FLAG= True #True or False
 STRATA_TYPE="ks" #ks or inpfc
 #TRANSECT_REGION_HAUL_TYPE="manual" #manual or auto.  I don't think 2013 can actually run auto, but this is setting up for across-year workflow 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -478,9 +478,10 @@ else:
     
     # GENERATE TRANSECT-REGION-HAUL KEY
     if REMOVE_AGE1:
-        CLASS_REGIONS = ["Hake", "Hake Mix"]
+        CLASS_REGIONS = config_processing["remove_age1_class_regions"]
     else:
-        CLASS_REGIONS = ["Age-1 Hake", "Age-1 Hake Mix", "Hake", "Hake Mix"]
+        #CLASS_REGIONS = ["Age-1 Hake", "Age-1 Hake Mix", "Hake", "Hake Mix", "Hake 1","Hake 2"]
+        CLASS_REGIONS = config_processing["all_class_regions"]
     logging.info(
         f"---- Generating transect-region-haul key mapping\n"
         f"     Searching for the export regions: {', '.join(CLASS_REGIONS)}"
