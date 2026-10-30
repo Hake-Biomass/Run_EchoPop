@@ -1956,3 +1956,22 @@ if COMPARE:
         },
         show_plot=SHOW_PLOT
     )
+
+#############################################################
+# Export excel sheet with uncertainty results
+# Currently just does kriging CV
+#############################################################
+
+def generate_uncertainty_results_excel(results, reports_dir):
+    reports_dir.mkdir(parents=True, exist_ok=True)
+    output_path = reports_dir / "uncertainy_report.xlsx"
+    pd.DataFrame(results.items(), columns=["Metric", "Value"]).to_excel(
+        output_path, index=False
+    )
+    return output_path
+
+
+uncertainty_results = {
+    "Kriging CV": krg.survey_cv,
+}
+generate_uncertainty_results_excel(uncertainty_results, REPORTS_DIR)
