@@ -479,7 +479,7 @@ logging.info(
 )
 
 # DROP TRANSECTS
-df_nasc = utils.apply_filters(df_nasc, include_filter={"transect_num": np.arange(1, 200)})
+df_nasc = utils.apply_filters(df_nasc, include_filter={"transect_num": np.arange(1, config_processing["transect_num_max"])})
 # # ==================================================================================================
 
 # AGE-1 DOMINATED HAUL REMOVAL

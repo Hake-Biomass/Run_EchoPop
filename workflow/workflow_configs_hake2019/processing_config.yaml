@@ -4,3 +4,4 @@ transect_boundary_filter: False
 age_1_dominated_hauls: [] 
 remove_age1_class_regions: ["Hake", "Hake Mix"]
 all_class_regions: ["Age-1 Hake", "Age-1 Hake Mix", "Hake", "Hake Mix"]
+transect_num_max: 200
