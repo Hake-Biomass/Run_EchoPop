@@ -1011,7 +1011,7 @@ logging.info("Biomass distribution complete\n'dict_ds_transect_biomass_table' cr
 # BIOMASS [AGED-ONLY]
 logging.info("Distributing biomass...\n     Aged-only weight proportions: True")
 df_transect_aged_biomass_table = apportionment.distribute_population_estimates(
-    data=df_nasc_proc,
+    data=df_nasc,
     proportions=dict_da_weight_proportion["aged"],
     variable="biomass",
     group_columns = ["sex", "age_bin", "length_bin", STRATUM_USE]
