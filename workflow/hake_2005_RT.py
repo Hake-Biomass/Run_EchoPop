@@ -35,7 +35,7 @@ except Exception:
 Year= 2005
 Years=[Year]
 runyearstr=str(Year) #added by RT
-EXTRAP_FLAG= True #True or False
+EXTRAP_FLAG= False #True or False
 STRATA_TYPE="ks" #ks or inpfc
 #TRANSECT_REGION_HAUL_TYPE="manual" #manual or auto.  I don't think 2013 can actually run auto, but this is setting up for across-year workflow 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -1964,7 +1964,7 @@ if COMPARE:
 
 def generate_uncertainty_results_excel(results, reports_dir):
     reports_dir.mkdir(parents=True, exist_ok=True)
-    output_path = reports_dir / "uncertainy_report.xlsx"
+    output_path = reports_dir / "uncertainty_report.xlsx"
     pd.DataFrame(results.items(), columns=["Metric", "Value"]).to_excel(
         output_path, index=False
     )

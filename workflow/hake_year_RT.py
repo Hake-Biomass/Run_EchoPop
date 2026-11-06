@@ -1986,7 +1986,7 @@ if COMPARE:
 
 def generate_uncertainty_results_excel(results, reports_dir):
     reports_dir.mkdir(parents=True, exist_ok=True)
-    output_path = reports_dir / "uncertainy_report.xlsx"
+    output_path = reports_dir / "uncertainty_report.xlsx"
     pd.DataFrame(results.items(), columns=["Metric", "Value"]).to_excel(
         output_path, index=False
     )
