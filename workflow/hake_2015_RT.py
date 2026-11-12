@@ -792,7 +792,7 @@ dict_da_weight_proportion = {}
 # AGED WEIGHT PROPORTIONS
 logging.info("Computing aged weight proportions...")
 dict_da_weight_proportion["aged"] = proportions.weight_proportions(
-    weight_data=ds_da_weight_dist["aged"], 
+    weight_data=ds_da_weight_dist,
     catch_data=dict_df_bio["catch"], 
     stratum_dim = STRATUM_USE,
 )
