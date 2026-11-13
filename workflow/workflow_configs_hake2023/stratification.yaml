@@ -15,6 +15,5 @@ geo_strata_sheets:
 rename_geo_strata_columns:
   latitude (upper limit): "northlimit_latitude"
   stratum: "stratum_num"
-stratum_source: ks
 stratum_name: stratum_ks
 join_method: uid

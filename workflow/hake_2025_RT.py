@@ -204,17 +204,17 @@ logging.info(
 if config_strata["join_method"] == "haul":
     dict_df_bio = ingestion.join_strata_by_haul(
         data=dict_df_bio,
-        strata=df_dict_strata[config_strata["stratum_source"]],
+        strata=df_dict_strata[STRATA_TYPE],
         default_stratum=config_strata["default_stratum"],
-        stratum_name=config_strata["stratum_name"]
+        stratum_name=f"stratum_{STRATA_TYPE}"
     )
     #uid for consistent indexing, US&CAN hauls; retain haul and ship information
 elif config_strata["join_method"] == "uid":
     dict_df_bio = ingestion.join_strata_by_uid(
         data=dict_df_bio,
-        strata=df_dict_strata[config_strata["stratum_source"]],
+        strata=df_dict_strata[STRATA_TYPE],
         default_stratum=config_strata["default_stratum"],
-        stratum_name=config_strata["stratum_name"]
+        stratum_name=f"stratum_{STRATA_TYPE}"
     )
 else:
     raise KeyError(

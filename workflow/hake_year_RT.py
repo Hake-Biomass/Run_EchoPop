@@ -99,6 +99,7 @@ REMOVE_AGE1 = True
 
 # Flags for later use
 NASC_PREPROCESSED = config_processing["NASC_PREPROCESSED_INPUT"]
+AFSC_NASC_INPUT = NASC_PREPROCESSED and config_processing.get("NASC_PREPROCESSED_AFSC", False)
 
 ####################################################################################################
 # FORMAT LOGGER
@@ -223,26 +224,24 @@ logging.info(
 )
 
 # Apply strata to biodata
-if config_strata["join_method"] == "haul":
-    dict_df_bio = ingestion.join_strata_by_haul(
-        data=dict_df_bio,
-        strata=df_dict_strata[config_strata["stratum_source"]],
-        default_stratum=config_strata["default_stratum"],
-        stratum_name=config_strata["stratum_name"]
-    )
-    #uid for consistent indexing, US&CAN hauls; retain haul and ship information
-elif config_strata["join_method"] == "uid":
-    dict_df_bio = ingestion.join_strata_by_uid(
-        data=dict_df_bio,
-        strata=df_dict_strata[config_strata["stratum_source"]],
-        default_stratum=config_strata["default_stratum"],
-        stratum_name=config_strata["stratum_name"]
-    )
-else:
+STRATA_JOIN_METHODS = {
+    "haul": ingestion.join_strata_by_haul,
+    "uid": ingestion.join_strata_by_uid,
+}
+try:
+    join_strata = STRATA_JOIN_METHODS[config_strata["join_method"]]
+except KeyError as error:
     raise KeyError(
-        f"Configuration parameter 'join_method' must be either 'haul' or 'uid'. "
-        f"Got: '{config_strata['biodata_format']}'!"
-    )    
+        "Configuration parameter 'join_method' must be either 'haul' or 'uid'. "
+        f"Got: '{config_strata['join_method']}'!"
+    ) from error
+
+dict_df_bio = join_strata(
+    data=dict_df_bio,
+    strata=df_dict_strata[STRATA_TYPE],
+    default_stratum=config_strata["default_stratum"],
+    stratum_name=f"stratum_{STRATA_TYPE}",
+)
 
 # READ IN GEOSTRATA FILE
 # GEOGRAPHIC STRATIFICATION FILE
@@ -323,7 +322,6 @@ ISOBATH_SHEET = config_kriging["isobath_sheet"]
 # ALREADY PROCESSED NASC FILE ? 
 # ---- When False, the raw NASC exports will be processed. When True, the pre-formatted NASC 
 # ---- spreadsheet will be read in. This also requires defining `NASC_EXPORTS_SHEET`
-NASC_PREPROCESSED = False
 # NASC EXPORTS FILE(S)
 NASC_EXPORTS_FILES = Path(DATA_ROOT) / "Exports/EchoPro_Exports" / config_nasc["formatted_exports_file"]
 NASC_EXPORTS_SHEET = config_nasc["formatted_exports_sheet"] #e.g. "Sheet1"
@@ -361,26 +359,51 @@ from echopop import geostatistics, inversion, utils
 if NASC_PREPROCESSED:
     logging.info(f"Reading pre-generated NASC export file: '{NASC_EXPORTS_FILES.as_posix()}'.")
 
-    # DEFINE COLUMN MAPPING
-    FEAT_TO_ECHOPOP_COLUMNS = {
-        "transect": "transect_num",
-        "region id": "region_id",
-        "vl start": "distance_s",
-        "vl end": "distance_e",
-        "spacing": "transect_spacing",
-        "layer mean depth": "layer_mean_depth",
-        "layer height": "layer_height",
-        "bottom depth": "bottom_depth",
-        "assigned haul": "haul_num",
-    }
+    if AFSC_NASC_INPUT:
+        afsc_column_map = config_processing.get("NASC_PREPROCESSED")
+        if not isinstance(afsc_column_map, dict):
+            raise ValueError(
+                "AFSC NASC input requires a column mapping in "
+                "processing_config.yaml under 'NASC_PREPROCESSED'."
+            )
+        df_nasc = ingestion.nasc.read_afsc_nasc_file(
+            filename=NASC_EXPORTS_FILES,
+            sheetname=NASC_EXPORTS_SHEET,
+            column_name_map=afsc_column_map,
+        )
+        df_nasc = feat.convert_afsc_nasc_to_feat(
+            nasc_data=df_nasc,
+            default_interval_distance=config_processing.get("afsc_default_interval_distance", 0.5),
+            default_transect_spacing=config_nasc["default_transect_spacing"],
+            inclusion_filter={
+                "transect_num": np.arange(1, config_processing["transect_num_max"])
+            },
+        )
+        df_nasc["nasc_proportion"] = 1.0
+        df_nasc["region_id"] = config_processing.get("afsc_region_id", 999)
+        df_nasc["layer_height"] = config_processing.get("afsc_layer_height", 0.0)
+        df_nasc["layer_mean_depth"] = config_processing.get("afsc_layer_mean_depth", 0.0)
+    else:
+        # DEFINE COLUMN MAPPING
+        FEAT_TO_ECHOPOP_COLUMNS = {
+            "transect": "transect_num",
+            "region id": "region_id",
+            "vl start": "distance_s",
+            "vl end": "distance_e",
+            "spacing": "transect_spacing",
+            "layer mean depth": "layer_mean_depth",
+            "layer height": "layer_height",
+            "bottom depth": "bottom_depth",
+            "assigned haul": "haul_num",
+        }
 
-    # Read file
-    df_nasc = ingestion.nasc.read_nasc_file(
-        filename=NASC_EXPORTS_FILES,
-        sheetname=NASC_EXPORTS_SHEET,
-        column_name_map=FEAT_TO_ECHOPOP_COLUMNS,
-        haul_uid_config=HAUL_UID_CONFIG,
-    )
+        # Read file
+        df_nasc = ingestion.nasc.read_nasc_file(
+            filename=NASC_EXPORTS_FILES,
+            sheetname=NASC_EXPORTS_SHEET,
+            column_name_map=FEAT_TO_ECHOPOP_COLUMNS,
+            haul_uid_config=HAUL_UID_CONFIG,
+        )
 else:
     logging.info(
         f"Beginning NASC export ingestion for files in: '{NASC_EXPORTS_FILES.as_posix()}'."
@@ -693,6 +716,19 @@ df_mesh = ingestion.join_geostrata_by_latitude(
     geostrata=df_dict_geostrata["ks"], 
     stratum_name="geostratum_ks"
 )
+
+if AFSC_NASC_INPUT and STRATA_TYPE == "inpfc":
+    north_limit = df_dict_geostrata["inpfc"]["northlimit_latitude"].max()
+    north_stratum = config_processing.get("inpfc_north_stratum", 1)
+    df_nasc["stratum_inpfc"] = pd.to_numeric(
+        df_nasc["geostratum_inpfc"], errors="coerce"
+    )
+    nasc_north = df_nasc["latitude"].gt(north_limit) & df_nasc["latitude"].le(90.0)
+    mesh_north = df_mesh["latitude"].gt(north_limit) & df_mesh["latitude"].le(90.0)
+    df_nasc.loc[nasc_north, "stratum_inpfc"] = north_stratum
+    df_nasc.loc[nasc_north, "geostratum_inpfc"] = north_stratum
+    df_mesh.loc[mesh_north, "geostratum_inpfc"] = north_stratum
+
 logging.info("Strata application complete!")
 # ==================================================================================================
 # BIN DATA USING EXPLICIT EDGES
@@ -781,6 +817,61 @@ da_binned_weight_table = xr.concat(
     [da_binned_weights_sex, da_binned_weights_all],
     dim = "sex"
 )
+
+if AFSC_NASC_INPUT and STRATA_TYPE == "inpfc" and config_processing.get(
+    "impute_empty_inpfc_strata", False
+):
+    required_strata = sorted(
+        int(value)
+        for value in pd.to_numeric(df_nasc[STRATUM_USE], errors="coerce").dropna().unique()
+        if int(value) != 0
+    )
+    biological_strata = sorted(
+        int(value)
+        for value in pd.to_numeric(
+            dict_df_bio["specimen"][STRATUM_USE], errors="coerce"
+        ).dropna().unique()
+        if int(value) != 0
+    )
+    missing_strata = [value for value in required_strata if value not in biological_strata]
+
+    for missing_stratum in missing_strata:
+        lower_strata = [value for value in biological_strata if value < missing_stratum]
+        upper_strata = [value for value in biological_strata if value > missing_stratum]
+        if lower_strata and upper_strata:
+            source_strata = [max(lower_strata), min(upper_strata)]
+        elif upper_strata:
+            source_strata = [min(upper_strata)]
+        elif lower_strata:
+            source_strata = [max(lower_strata)]
+        else:
+            raise ValueError(
+                f"Cannot impute INPFC stratum {missing_stratum}: "
+                "no populated biological stratum is available."
+            )
+
+        for dataset_name, dataset in dict_df_bio.items():
+            if STRATUM_USE not in dataset.columns or dataset[STRATUM_USE].eq(missing_stratum).any():
+                continue
+            donor_rows = dataset[dataset[STRATUM_USE].isin(source_strata)].copy()
+            if donor_rows.empty:
+                continue
+            donor_rows[STRATUM_USE] = missing_stratum
+            dict_df_bio[dataset_name] = pd.concat(
+                [dataset, donor_rows], ignore_index=True
+            )
+
+        if not dict_df_bio["specimen"][STRATUM_USE].eq(missing_stratum).any():
+            raise ValueError(
+                f"Failed to impute biological data for INPFC stratum {missing_stratum}."
+            )
+        biological_strata.append(missing_stratum)
+        biological_strata.sort()
+        logging.info(
+            f"Imputed empty INPFC stratum {missing_stratum} from "
+            f"neighboring populated stratum(s) {source_strata}."
+        )
+
 # I think below uses specific stratum now (RT)
 # ==================================================================================================
 # COMPUTE COUNT DISTRIBUTIONS PER AGE- AND LENGTH-BINS
@@ -909,7 +1000,10 @@ MODEL_PARAMETERS = {
     },
     #"stratify_by": ["stratum_ks"],
     "stratify_by": [STRATUM_USE],
-    "expected_strata": np.sort(df_dict_strata[STRATA_TYPE].stratum_num.unique()),
+    "expected_strata": np.sort(np.union1d(
+        df_dict_strata[STRATA_TYPE].stratum_num.unique(),
+        pd.to_numeric(df_nasc[STRATUM_USE], errors="coerce").dropna().unique(),
+    )),
     "impute_missing_strata": True,
     "haul_replicates": True,
     "haul_column": "uid",
