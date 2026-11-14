@@ -41,6 +41,7 @@ Year = cli_utils_hake.get_year()
 EXTRAP_FLAG = cli_utils_hake.get_extrap_flag()  #Use --extrap to enable extrapolation or --no-extrap to disable it. Omitting both keeps it enabled.
 STRATA_TYPE = cli_utils_hake.get_strata_type()  #default is KS
 
+#Year=2001
 Years=[Year]
 runyearstr=str(Year) #added by RT
 #EXTRAP_FLAG= True #True or False
@@ -99,8 +100,8 @@ REMOVE_AGE1 = True
 
 # Flags for later use
 NASC_PREPROCESSED = config_processing["NASC_PREPROCESSED_INPUT"]
-AFSC_NASC_INPUT = NASC_PREPROCESSED and config_processing.get("NASC_PREPROCESSED_AFSC", False)
-
+AFSC_NASC_INPUT = NASC_PREPROCESSED and config_processing.get("NASC_PREPROCESSED_AFSC", False)  #if NASC_PRE_PROCESSED_AFSC key is missing, returns false
+# Only have AFSC_NASC_INPUT be true if have both pre_processed NASC, and have a flag for it to be true
 ####################################################################################################
 # FORMAT LOGGER
 for handler in logging.root.handlers[:]:
@@ -229,7 +230,7 @@ STRATA_JOIN_METHODS = {
     "uid": ingestion.join_strata_by_uid,
 }
 try:
-    join_strata = STRATA_JOIN_METHODS[config_strata["join_method"]]
+    join_strata = STRATA_JOIN_METHODS[config_strata["join_method"]] #this will be the function for the method that is used
 except KeyError as error:
     raise KeyError(
         "Configuration parameter 'join_method' must be either 'haul' or 'uid'. "
