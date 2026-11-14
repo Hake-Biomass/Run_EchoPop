@@ -1,0 +1,24 @@
+NASC_PREPROCESSED_INPUT: True
+NASC_PREPROCESSED_AFSC: True
+NASC_PREPROCESSED:
+    transect: "transect_num"
+    log: "distance"
+    lat: "latitude"
+    long: "longitude"
+    strata: "stratum_ks"
+    width: "transect_spacing"
+    mean layer depth: "layer_depth_mean"
+    depth: "bottom_depth"
+    hake: "nasc"
+transect_region_haul_type: manual
+transect_boundary_filter: True
+transect_boundary:
+  transect_boundary_file: Transect Bounds to 2011.xlsx
+  transect_boundary_sheet: "1995-2011"
+  survey_filter:   "survey == 199810"
+age_1_dominated_hauls: []  
+remove_age1_class_regions: ["Hake", "Hake Mix"]
+all_class_regions: ["Age-1 Hake", "Age-1 Hake Mix", "Hake", "Hake Mix"]
+transect_num_max: 400
+inpfc_north_stratum: 1
+impute_empty_inpfc_strata: true
