@@ -35,8 +35,8 @@ except Exception:
 Year= 1998
 Years=[Year]
 runyearstr=str(Year) #added by RT
-EXTRAP_FLAG= True #True or False
-STRATA_TYPE="ks" #ks or inpfc
+EXTRAP_FLAG= False #True or False
+STRATA_TYPE="inpfc" #ks or inpfc
 #TRANSECT_REGION_HAUL_TYPE="manual" #manual or auto.  I don't think 2013 can actually run auto, but this is setting up for across-year workflow 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -1199,16 +1199,25 @@ logging.info(
 # NASC
 df_nasc_proc, delta_longitude, delta_latitude = geostatistics.transform_coordinates(
     data = df_nasc_proc,
-    reference = df_isobath,
+    #reference = df_isobath,
+    reference = df_isobath.iloc[:148],
     x_offset = -124.78338,
     y_offset = 45.,   
 )
 
-
+logging.info(
+    f"!!! [1998] WARNING:\n"
+    f"{sum(np.isnan(df_nasc_proc["x"]))} latitude coordinates in 'df_nasc' fall outside of the "
+    f"reference coordinates in 'df_isobath'.\nThese resulted in transformed x-coordinates that "
+    f"could not be correctly interpolated.\nThese values will therefore be removed."
+)
+df_nasc_valid_x = df_nasc_proc.dropna(subset=["x"])
+df_nasc_proc=df_nasc_valid_x
 # MESH
 df_mesh, _, _ = geostatistics.transform_coordinates(
     data = df_mesh,
-    reference = df_isobath,
+    #reference = df_isobath,
+    reference = df_isobath.iloc[:148],
     x_offset = -124.78338,
     y_offset = 45.,   
     delta_x=delta_longitude,
@@ -1384,7 +1393,7 @@ else:
 #########################
 
 df_kriged_results = krg.krige(
-    transects=df_nasc_proc,
+    transects=df_nasc_proc ,
     variable="biomass_density",
     extrapolate=EXTRAP_FLAG,
     default_mesh_cell_area=6.25,

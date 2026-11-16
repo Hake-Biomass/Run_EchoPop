@@ -1206,19 +1206,27 @@ logging.info(
     "     Latitudinal offset: 45.0 deg.N"
 )
 
+# For 1998, the first 148 isobath rows define the reference used by both coordinate transforms.
+isobath_reference = df_isobath.iloc[:148] if Year == 1998 else df_isobath
+
 # NASC
 df_nasc_proc, delta_longitude, delta_latitude = geostatistics.transform_coordinates(
     data = df_nasc_proc,
-    reference = df_isobath,
+    reference = isobath_reference,
     x_offset = -124.78338,
     y_offset = 45.,   
 )
 
+# The 1998 isobath does not cover every transect latitude, leaving some projected x values NaN.
+# Exclude those rows from downstream spatial analyses, while preserving all years' prior behavior.
+if Year == 1998:
+    df_nasc_valid_x = df_nasc_proc.dropna(subset=["x"])
+    df_nasc_proc = df_nasc_valid_x
 
 # MESH
 df_mesh, _, _ = geostatistics.transform_coordinates(
     data = df_mesh,
-    reference = df_isobath,
+    reference = isobath_reference,
     x_offset = -124.78338,
     y_offset = 45.,   
     delta_x=delta_longitude,
