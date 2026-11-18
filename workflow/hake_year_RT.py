@@ -101,6 +101,7 @@ REMOVE_AGE1 = True
 # Flags for later use
 NASC_PREPROCESSED = config_processing["NASC_PREPROCESSED_INPUT"]
 AFSC_NASC_INPUT = NASC_PREPROCESSED and config_processing.get("NASC_PREPROCESSED_AFSC", False)  #if NASC_PRE_PROCESSED_AFSC key is missing, returns false
+TRANSECT_NUM_MAX = config_processing["transect_num_max"]
 # Only have AFSC_NASC_INPUT be true if have both pre_processed NASC, and have a flag for it to be true
 ####################################################################################################
 # FORMAT LOGGER
@@ -372,13 +373,16 @@ if NASC_PREPROCESSED:
             sheetname=NASC_EXPORTS_SHEET,
             column_name_map=afsc_column_map,
         )
+        afsc_inclusion_filter = None
+        if TRANSECT_NUM_MAX is not None:
+            afsc_inclusion_filter = {
+                "transect_num": np.arange(1, TRANSECT_NUM_MAX)
+            }
         df_nasc = feat.convert_afsc_nasc_to_feat(
             nasc_data=df_nasc,
             default_interval_distance=config_processing.get("afsc_default_interval_distance", 0.5),
             default_transect_spacing=config_nasc["default_transect_spacing"],
-            inclusion_filter={
-                "transect_num": np.arange(1, config_processing["transect_num_max"])
-            },
+            inclusion_filter=afsc_inclusion_filter,
         )
         df_nasc["nasc_proportion"] = 1.0
         df_nasc["region_id"] = config_processing.get("afsc_region_id", 999)
@@ -568,7 +572,11 @@ if TRANSECT_BOUNDARY_FILTER == True:
 
 # DROP TRANSECTS
 #df_nasc = utils.apply_filters(df_nasc, include_filter={"transect_num": np.arange(1, 2000)})
-df_nasc = utils.apply_filters(df_nasc, include_filter={"transect_num": np.arange(1, config_processing["transect_num_max"])})
+if TRANSECT_NUM_MAX is not None:
+    df_nasc = utils.apply_filters(
+        df_nasc,
+        include_filter={"transect_num": np.arange(1, TRANSECT_NUM_MAX)},
+    )
 # # ==================================================================================================
 
 # AGE-1 DOMINATED HAUL REMOVAL
@@ -1007,7 +1015,7 @@ MODEL_PARAMETERS = {
     )),
     "impute_missing_strata": True,
     "haul_replicates": True,
-    "haul_column": "uid",
+    "haul_column": config_processing.get("inversion_haul_column", "uid"),
 }
 
 # INITIALIZE INVERSION OBJECT
