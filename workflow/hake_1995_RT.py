@@ -365,22 +365,29 @@ if NASC_PREPROCESSED:
     logging.info(f"Reading pre-generated NASC export file: '{NASC_EXPORTS_FILES.as_posix()}'.")
     if config_processing["NASC_PREPROCESSED_AFSC"]==True:
         # DEFINE COLUMN MAPPING - AFSC
-        FEAT_TO_ECHOPOP_COLUMNS = {
-            "transect": "transect_num",
-            "log": "distance",
-            "lat": "latitude",
-            "long": "longitude",
-            "strata": "stratum_ks",
-            "width": "transect_spacing",
-            "mean layer depth": "layer_depth_mean",
-            "depth": "bottom_depth",
-            "hake": "nasc",
-        }
+        # FEAT_TO_ECHOPOP_COLUMNS = {
+        #     "transect": "transect_num",
+        #     "log": "distance",
+        #     "lat": "latitude",
+        #     "long": "longitude",
+        #     "strata": "stratum_ks",
+        #     "width": "transect_spacing",
+        #     "mean layer depth": "layer_depth_mean",
+        #     "depth": "bottom_depth",
+        #     "hake": "nasc",
+        # }
+        afsc_column_map = config_processing.get("NASC_PREPROCESSED")
+        if not isinstance(afsc_column_map, dict):
+            raise ValueError(
+                "AFSC NASC input requires a column mapping in "
+                "processing_config.yaml under 'NASC_PREPROCESSED'."
+            )
         # READ FILE
         df_nasc = ingestion.nasc.read_afsc_nasc_file(
             filename=NASC_EXPORTS_FILES,
             sheetname=NASC_EXPORTS_SHEET,
-            column_name_map=FEAT_TO_ECHOPOP_COLUMNS,
+            #column_name_map=FEAT_TO_ECHOPOP_COLUMNS,
+            column_name_map=afsc_column_map,
         )
 
         # CONVERT AFSC TO FEAT FORMAT
@@ -394,7 +401,7 @@ if NASC_PREPROCESSED:
             nasc_data=df_nasc,
             default_interval_distance=0.5,
             default_transect_spacing=config_nasc["default_transect_spacing"],
-            inclusion_filter={"transect_num": np.arange(1, config_processing["transect_num_max"])}
+            #inclusion_filter={"transect_num": np.arange(1, config_processing["transect_num_max"])}
         )
         df_nasc["nasc_proportion"] = 1.0
     else:
@@ -590,7 +597,12 @@ if any(df_nasc["longitude"] > 0):
 
 # DROP TRANSECTS
 #df_nasc = utils.apply_filters(df_nasc, include_filter={"transect_num": np.arange(1, 2000)})
-df_nasc = utils.apply_filters(df_nasc, include_filter={"transect_num": np.arange(1, config_processing["transect_num_max"])})
+transect_num_max = config_processing.get("transect_num_max")
+if transect_num_max is not None:
+    df_nasc = utils.apply_filters(
+        df_nasc,
+        include_filter={"transect_num": np.arange(1, transect_num_max)},
+    )
 # The 2001 AFSC input has no region or layer fields.
 if NASC_PREPROCESSED and config_processing["NASC_PREPROCESSED_AFSC"]:
     df_nasc["region_id"] = 999
