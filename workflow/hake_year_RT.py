@@ -568,6 +568,23 @@ if TRANSECT_BOUNDARY_FILTER == True:
         f"     Survey filter: '{SURVEY_FILTER}'"
     )
 
+# AFSC exports can have missing vessel-log distances and west-positive longitudes.
+if AFSC_NASC_INPUT:
+    missing_distance_rows = int(df_nasc["distance_s"].isna().sum())
+    if missing_distance_rows:
+        # Keep these intervals usable by assigning the default half-nautical-mile log span.
+        logging.warning(
+            f"!!! [{runyearstr}] WARNING:\n"
+            f"{missing_distance_rows} rows had missing vessel log distances. "
+            "Replacing them with the default 0.5 nmi interval."
+        )
+        df_nasc.fillna({"distance_s": 0.0, "distance_e": 0.5}, inplace=True)
+
+    # EchoPop expects signed west longitudes; AFSC exports may store them as positive magnitudes.
+    if (df_nasc["longitude"] > 0).any():
+        logging.info("Converting west-positive longitude values to negative degrees.")
+        df_nasc["longitude"] = -np.abs(df_nasc["longitude"])
+
 # Done with Transect_boundary if statement
 
 # DROP TRANSECTS
